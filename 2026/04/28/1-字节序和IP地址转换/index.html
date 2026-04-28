@@ -1,0 +1,364 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>1.字节序和IP地址转换 | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="字节序1. 字节序是什么？（通俗理解）字节序（Endianness）指的是多字节数据在内存中的存储顺序。 计算机存储数据时，单个字节（如 0x12）没有顺序问题，但多字节数据（如 16 位端口号 0x1234、32 位 IP 地址 0x12345678）会有两种存储方式：  把高位字节存在低内存地址（大端） 把低位字节存在低内存地址（小端）  1. 大端序（Big-Endian）：“高位在前”（符">
+<meta property="og:type" content="article">
+<meta property="og:title" content="1.字节序和IP地址转换">
+<meta property="og:url" content="http://example.com/2026/04/28/1-%E5%AD%97%E8%8A%82%E5%BA%8F%E5%92%8CIP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="字节序1. 字节序是什么？（通俗理解）字节序（Endianness）指的是多字节数据在内存中的存储顺序。 计算机存储数据时，单个字节（如 0x12）没有顺序问题，但多字节数据（如 16 位端口号 0x1234、32 位 IP 地址 0x12345678）会有两种存储方式：  把高位字节存在低内存地址（大端） 把低位字节存在低内存地址（小端）  1. 大端序（Big-Endian）：“高位在前”（符">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-28T07:36:14.000Z">
+<meta property="article:modified_time" content="2026-04-28T07:37:17.259Z">
+<meta property="article:author" content="dinghai">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "1.字节序和IP地址转换",
+  "url": "http://example.com/2026/04/28/1-%E5%AD%97%E8%8A%82%E5%BA%8F%E5%92%8CIP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-28T07:36:14.000Z",
+  "dateModified": "2026-04-28T07:37:17.259Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/28/1-%E5%AD%97%E8%8A%82%E5%BA%8F%E5%92%8CIP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '1.字节序和IP地址转换',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">14</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">2</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">1.字节序和IP地址转换</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">1.字节序和IP地址转换</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-28T07:36:14.000Z" title="Created 2026-04-28 15:36:14">2026-04-28</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-28T07:37:17.259Z" title="Updated 2026-04-28 15:37:17">2026-04-28</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/">网络编程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><h2 id="字节序"><a href="#字节序" class="headerlink" title="字节序"></a>字节序</h2><h3 id="1-字节序是什么？（通俗理解）"><a href="#1-字节序是什么？（通俗理解）" class="headerlink" title="1. 字节序是什么？（通俗理解）"></a>1. 字节序是什么？（通俗理解）</h3><p>字节序（Endianness）指的是<strong>多字节数据在内存中的存储顺序</strong>。</p>
+<p>计算机存储数据时，单个字节（如 <code>0x12</code>）没有顺序问题，但多字节数据（如 16 位端口号 <code>0x1234</code>、32 位 IP 地址 <code>0x12345678</code>）会有两种存储方式：</p>
+<ul>
+<li>把<strong>高位字节</strong>存在<strong>低内存地址</strong>（大端）</li>
+<li>把<strong>低位字节</strong>存在<strong>低内存地址</strong>（小端）</li>
+</ul>
+<h4 id="1-大端序（Big-Endian）：“高位在前”（符合人类习惯）"><a href="#1-大端序（Big-Endian）：“高位在前”（符合人类习惯）" class="headerlink" title="1. 大端序（Big-Endian）：“高位在前”（符合人类习惯）"></a>1. 大端序（Big-Endian）：“高位在前”（符合人类习惯）</h4><ul>
+<li><p>规则：<strong>高位字节存在低地址内存格，低位字节存在高地址内存格</strong>；</p>
+</li>
+<li><p>比喻：像人类写数字 <code>1234</code> 一样，先写高位的<code>12</code>，再写低位的<code>34</code>；</p>
+</li>
+<li><p>例子：存储 <code>0x1234</code>（十进制 4660）</p>
+<table>
+<thead>
+<tr>
+<th>内存地址</th>
+<th>存储内容</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>100</td>
+<td>0x12</td>
+<td>低地址存高位字节</td>
+</tr>
+<tr>
+<td>101</td>
+<td>0x34</td>
+<td>高地址存低位字节</td>
+</tr>
+</tbody></table>
+</li>
+</ul>
+<h4 id="2-小端序（Little-Endian）：“低位在前”（计算机更常用）"><a href="#2-小端序（Little-Endian）：“低位在前”（计算机更常用）" class="headerlink" title="2. 小端序（Little-Endian）：“低位在前”（计算机更常用）"></a>2. 小端序（Little-Endian）：“低位在前”（计算机更常用）</h4><ul>
+<li><p>规则：<strong>低位字节存在低地址内存格，高位字节存在高地址内存格</strong>；</p>
+</li>
+<li><p>比喻：把数字倒着写，先写低位的<code>34</code>，再写高位的<code>12</code>；</p>
+</li>
+<li><p>例子：存储 <code>0x1234</code>（十进制 4660）</p>
+<table>
+<thead>
+<tr>
+<th>内存地址</th>
+<th>存储内容</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>100</td>
+<td>0x34</td>
+<td>低地址存低位字节</td>
+</tr>
+<tr>
+<td>101</td>
+<td>0x12</td>
+<td>高地址存高位字节</td>
+</tr>
+</tbody></table>
+</li>
+</ul>
+<blockquote>
+<p>补充：x86&#x2F;x86_64 架构的 CPU（绝大多数电脑、服务器）都是<strong>小端序</strong>，而网络传输协议规定必须用<strong>大端序</strong>（也叫 “网络字节序”）。</p>
+</blockquote>
+<h3 id="2-字节序的分类"><a href="#2-字节序的分类" class="headerlink" title="2. 字节序的分类"></a>2. 字节序的分类</h3><h4 id="（1）主机字节序（Host-Byte-Order）"><a href="#（1）主机字节序（Host-Byte-Order）" class="headerlink" title="（1）主机字节序（Host Byte Order）"></a>（1）主机字节序（Host Byte Order）</h4><ul>
+<li>定义：当前机器 CPU 的原生字节序（大部分是小端，少数嵌入式 CPU 是大端）；</li>
+<li>特点：程序中直接定义的变量（如 <code>int port = 8080</code>）默认是主机字节序。</li>
+</ul>
+<h4 id="（2）网络字节序（Network-Byte-Order）"><a href="#（2）网络字节序（Network-Byte-Order）" class="headerlink" title="（2）网络字节序（Network Byte Order）"></a>（2）网络字节序（Network Byte Order）</h4><ul>
+<li>定义：TCP&#x2F;IP 协议规定的统一字节序（固定为大端）；</li>
+<li>原因：不同机器的主机字节序可能不同（比如 A 机小端、B 机大端），如果直接传输，对方会解析出错误数据，因此必须统一为大端序。</li>
+</ul>
+<h3 id="3-为什么网络编程必须转换字节序？"><a href="#3-为什么网络编程必须转换字节序？" class="headerlink" title="3. 为什么网络编程必须转换字节序？"></a>3. 为什么网络编程必须转换字节序？</h3><p>以端口号为例：</p>
+<p>你在小端机器上定义 <code>int port = 8080</code>（十进制 8080 &#x3D; 十六进制 <code>0x1F90</code>），内存中存储为 <code>0x90 0x1F</code>（小端）；</p>
+<p>如果直接传给网络，接收方按大端解析会得到 <code>0x901F</code>（十进制 36895），完全错误。</p>
+<p>因此必须把主机字节序的端口 &#x2F; IP，转换成网络字节序再传输；接收方拿到数据后，再转回主机字节序。</p>
+<h3 id="4-字节序转换函数（核心工具）"><a href="#4-字节序转换函数（核心工具）" class="headerlink" title="4. 字节序转换函数（核心工具）"></a>4. 字节序转换函数（核心工具）</h3><p>系统提供了专门的函数处理字节序转换，无需手动拆分字节，这些函数在 <code>&lt;netinet/in.h&gt;</code> 中声明：</p>
+<table>
+<thead>
+<tr>
+<th>函数名</th>
+<th>作用</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>htons()</code></td>
+<td>Host to Network Short（16 位）</td>
+<td>转换端口号（16 位）</td>
+</tr>
+<tr>
+<td><code>htonl()</code></td>
+<td>Host to Network Long（32 位）</td>
+<td>转换 IPv4 地址（32 位）</td>
+</tr>
+<tr>
+<td><code>ntohs()</code></td>
+<td>Network to Host Short（16 位）</td>
+<td>解析网络传来的端口号</td>
+</tr>
+<tr>
+<td><code>ntohl()</code></td>
+<td>Network to Host Long（32 位）</td>
+<td>解析网络传来的 IPv4 地址</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注意：IPv6 地址是 128 位，无需这些函数转换（<code>sockaddr_in6</code> 的 <code>sin6_addr</code> 直接存储字节数组，由 <code>inet_pton()</code>&#x2F;<code>inet_ntop()</code> 处理）。</p>
+</blockquote>
+<h3 id="5-代码示例：字节序转换的实际应用"><a href="#5-代码示例：字节序转换的实际应用" class="headerlink" title="5. 代码示例：字节序转换的实际应用"></a>5. 代码示例：字节序转换的实际应用</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;netinet/in.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 1. 端口号转换（16位）</span></span><br><span class="line">    <span class="type">uint16_t</span> host_port = <span class="number">8080</span>; <span class="comment">// 主机字节序（小端机器：0x90 0x1F）</span></span><br><span class="line">    <span class="type">uint16_t</span> net_port = htons(host_port); <span class="comment">// 转网络字节序（大端：0x1F 0x90）</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;主机字节序端口：%d → 网络字节序：%u\n&quot;</span>, host_port, net_port);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. IPv4地址转换（32位）</span></span><br><span class="line">    <span class="type">uint32_t</span> host_ip = <span class="number">0x0100007F</span>; <span class="comment">// 主机字节序（小端：对应127.0.0.1）</span></span><br><span class="line">    <span class="type">uint32_t</span> net_ip = htonl(host_ip); <span class="comment">// 转网络字节序（大端）</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;主机字节序IP(0x%X) → 网络字节序(0x%X)\n&quot;</span>, host_ip, net_ip);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 反向转换（接收数据时）</span></span><br><span class="line">    <span class="type">uint16_t</span> recv_port = ntohs(net_port); <span class="comment">// 网络字节序转回主机字节序</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;网络字节序端口转回主机：%u\n&quot;</span>, recv_port);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="运行结果（小端机器）："><a href="#运行结果（小端机器）：" class="headerlink" title="运行结果（小端机器）："></a>运行结果（小端机器）：</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">主机字节序端口：8080 → 网络字节序：38000</span><br><span class="line">主机字节序IP(0x100007F) → 网络字节序(0x7F000001)</span><br><span class="line">网络字节序端口转回主机：8080</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-关键注意事项"><a href="#6-关键注意事项" class="headerlink" title="6. 关键注意事项"></a>6. 关键注意事项</h3><ul>
+<li>这些转换函数是<strong>跨平台的</strong>：如果机器本身是大端，函数会直接返回原值（无需转换）；</li>
+<li>只转换<strong>多字节数据</strong>：单个字节（如 <code>char</code>）无需转换；</li>
+<li>IPv6 无此类函数：<code>sockaddr_in6</code> 的 <code>sin6_port</code> 仍用 <code>htons()</code>（16 位），但 <code>sin6_addr</code> 是 16 字节数组，由 <code>inet_pton()</code> 直接处理为网络字节序。</li>
+</ul>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><ol>
+<li>字节序是多字节数据的内存存储顺序，分为<strong>主机字节序</strong>（机器原生，多为小端）和<strong>网络字节序</strong>（协议规定，固定大端）；</li>
+<li>网络编程中，端口（16 位）、IPv4 地址（32 位）必须用 <code>htons()</code>&#x2F;<code>htonl()</code> 转网络字节序，接收时用 <code>ntohs()</code>&#x2F;<code>ntohl()</code> 转回；</li>
+<li>转换函数跨平台，无需关心机器本身是大端还是小端，直接调用即可保证数据传输正确。</li>
+</ol>
+<h2 id="IP地址转换"><a href="#IP地址转换" class="headerlink" title="IP地址转换"></a>IP地址转换</h2><p>虽然IP地址本质是一个整形数，但是在使用的过程中都是通过一个字符串来描述，下面的函数描述了如何将一个字符串类型的IP地址进行大小端转换：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 主机字节序的IP地址转换为网络字节序</span></span><br><span class="line"><span class="comment">// 主机字节序的IP地址是字符串, 网络字节序IP地址是整形</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">inet_pton</span><span class="params">(<span class="type">int</span> af, <span class="type">const</span> <span class="type">char</span> *src, <span class="type">void</span> *dst)</span>; </span><br></pre></td></tr></table></figure>
+
+<p><strong>参数:</strong></p>
+<ul>
+<li>af: 地址族(IP地址的家族包括ipv4和ipv6)协议<ul>
+<li>AF_INET: ipv4格式的ip地址</li>
+<li>AF_INET6: ipv6格式的ip地址</li>
+</ul>
+</li>
+<li>src: <strong>传入参数</strong>, 对应要转换的点分十进制的ip地址: 192.168.1.100</li>
+<li>dst: <strong>传出参数</strong>, 函数调用完成, 转换得到的大端整形IP被写入到这块内存中</li>
+</ul>
+<p><strong>返回值</strong>：成功返回1，无效IP返回0，失败返回-1</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;arpa/inet.h&gt;</span></span></span><br><span class="line"><span class="comment">// 将大端的整形数, 转换为小端的点分十进制的IP地址        </span></span><br><span class="line"><span class="type">const</span> <span class="type">char</span> *<span class="title function_">inet_ntop</span><span class="params">(<span class="type">int</span> af, <span class="type">const</span> <span class="type">void</span> *src, <span class="type">char</span> *dst, <span class="type">socklen_t</span> size)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>参数:</strong></p>
+<ul>
+<li>af: 地址族协议<ul>
+<li>AF_INET: ipv4格式的ip地址</li>
+<li>AF_INET6: ipv6格式的ip地址</li>
+</ul>
+</li>
+<li>src: 传入参数, 这个指针指向的内存中存储了大端的整形IP地址</li>
+<li>dst: 传出参数, 存储转换得到的小端的点分十进制的IP地址</li>
+<li>size: 修饰dst参数的, 标记dst指向的内存中最多可以存储多少个字节</li>
+</ul>
+<p><strong>返回值:</strong></p>
+<ul>
+<li>成功: 指针指向第三个参数对应的内存地址, 通过返回值也可以直接取出转换得到的IP字符串</li>
+<li>失败: NULL</li>
+</ul>
+<p> <strong>示例 1：客户端指定服务器 IP（<code>inet_pton()</code>）</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 配置服务器地址</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">sockaddr_in</span> server_addr&#123;&#125;;</span><br><span class="line">server_addr.sin_family = AF_INET;</span><br><span class="line">server_addr.sin_port = <span class="built_in">htons</span>(<span class="number">8080</span>); <span class="comment">// 端口转网络序</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 字符串IP &quot;127.0.0.1&quot; 转二进制IP（网络序），存入sin_addr</span></span><br><span class="line"><span class="keyword">if</span> (<span class="built_in">inet_pton</span>(AF_INET, <span class="string">&quot;127.0.0.1&quot;</span>, &amp;server_addr.sin_addr) &lt;= <span class="number">0</span>) &#123;</span><br><span class="line">    std::cerr &lt;&lt; <span class="string">&quot;IP转换失败！&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 连接服务器</span></span><br><span class="line"><span class="built_in">connect</span>(fd, (<span class="keyword">struct</span> sockaddr*)&amp;server_addr, <span class="built_in">sizeof</span>(server_addr));</span><br></pre></td></tr></table></figure>
+
+<p><strong>示例 2：服务端解析客户端 IP（<code>inet_ntop()</code>）</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// accept接收客户端连接后，解析客户端IP和端口</span></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">sockaddr_in</span> client_addr&#123;&#125;;</span><br><span class="line"><span class="type">socklen_t</span> client_len = <span class="built_in">sizeof</span>(client_addr);</span><br><span class="line"><span class="type">int</span> conn_fd = <span class="built_in">accept</span>(listen_fd, (<span class="keyword">struct</span> sockaddr*)&amp;client_addr, &amp;client_len);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 二进制IP（网络序）转字符串IP</span></span><br><span class="line"><span class="type">char</span> client_ip[INET_ADDRSTRLEN];</span><br><span class="line"><span class="built_in">inet_ntop</span>(AF_INET, &amp;client_addr.sin_addr, client_ip, <span class="built_in">sizeof</span>(client_ip));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 端口转主机序（必须用ntohs()）</span></span><br><span class="line"><span class="type">uint16_t</span> client_port = <span class="built_in">ntohs</span>(client_addr.sin_port);</span><br><span class="line"></span><br><span class="line">std::cout &lt;&lt; <span class="string">&quot;客户端：&quot;</span> &lt;&lt; client_ip &lt;&lt; <span class="string">&quot;:&quot;</span> &lt;&lt; client_port &lt;&lt; std</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><code>INET_ADDRSTRLEN</code> 这个宏的含义和用法，它是系统定义的<strong>常量宏</strong>，核心作用是「指定存储 IPv4 字符串格式地址的缓冲区最小长度」，是编写 IP 地址转换代码时的关键常量。</p>
+</blockquote>
+<p><strong>为什么是 16？</strong></p>
+<p>IPv4 地址的最大长度是 <code>xxx.xxx.xxx.xxx</code>（比如 <code>255.255.255.255</code>）：</p>
+<ul>
+<li>4 组数字（每组最多 3 位） + 3 个点 &#x3D; 3×4 + 3 &#x3D; 15 个字符；</li>
+<li>额外加 1 个字节存储字符串结束符 <code>\0</code>，总计 16 字节。</li>
+</ul>
+<p>在使用 <code>inet_ntop()</code> 转换「二进制 IP → 字符串 IP」时，需要提前分配字符串缓冲区，<code>INET_ADDRSTRLEN</code> 能保证缓冲区大小足够，避免<strong>缓冲区溢出</strong>（新手最容易踩的坑）。</p>
+<h4 id="反例（错误）：缓冲区太小导致溢出"><a href="#反例（错误）：缓冲区太小导致溢出" class="headerlink" title="反例（错误）：缓冲区太小导致溢出"></a>反例（错误）：缓冲区太小导致溢出</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">char</span> ip_buf[<span class="number">15</span>]; <span class="comment">// 仅15字节，少了结束符的位置</span></span><br><span class="line"><span class="built_in">inet_ntop</span>(AF_INET, &amp;ip_bin, ip_buf, <span class="number">15</span>); <span class="comment">// 可能导致内存越界</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="正例（正确）：用-INET-ADDRSTRLEN-定义缓冲区"><a href="#正例（正确）：用-INET-ADDRSTRLEN-定义缓冲区" class="headerlink" title="正例（正确）：用 INET_ADDRSTRLEN 定义缓冲区"></a>正例（正确）：用 INET_ADDRSTRLEN 定义缓冲区</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">char</span> ip_buf[INET_ADDRSTRLEN]; <span class="comment">// 系统保证足够大（16字节）</span></span><br><span class="line"><span class="built_in">inet_ntop</span>(AF_INET, &amp;ip_bin, ip_buf, INET_ADDRSTRLEN); <span class="comment">// 安全无溢出</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="三、对比：IPv6-对应的常量"><a href="#三、对比：IPv6-对应的常量" class="headerlink" title="三、对比：IPv6 对应的常量"></a>三、对比：IPv6 对应的常量</h3><p>如果处理 IPv6 地址，对应的常量是 <code>INET6_ADDRSTRLEN</code>（值为 46），用法完全一致：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 存储IPv6字符串的缓冲区</span></span><br><span class="line"><span class="type">char</span> ipv6_buf[INET6_ADDRSTRLEN];</span><br><span class="line"><span class="built_in">inet_ntop</span>(AF_INET6, &amp;ipv6_bin, ipv6_buf, INET6_ADDRSTRLEN);</span><br></pre></td></tr></table></figure>
+
+<p>还有一组函数也能进程IP地址大小端的转换，但是只能处理ipv4的ip地址：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 点分十进制IP -&gt; 大端整形</span></span><br><span class="line"><span class="type">in_addr_t</span> <span class="title function_">inet_addr</span> <span class="params">(<span class="type">const</span> <span class="type">char</span> *cp)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 大端整形 -&gt; 点分十进制IP</span></span><br><span class="line"><span class="type">char</span>* <span class="title function_">inet_ntoa</span><span class="params">(<span class="keyword">struct</span> in_addr in)</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="关键避坑要点"><a href="#关键避坑要点" class="headerlink" title="关键避坑要点"></a>关键避坑要点</h3><ol>
+<li><p><strong>字节序问题</strong>：</p>
+<ul>
+<li>IP 转换函数（<code>inet_pton()</code>&#x2F;<code>inet_addr()</code>）返回的二进制 IP<strong>已经是网络序</strong>，无需再调用 <code>htonl()</code>；</li>
+<li>只有手动构造的 32 位整数 IP（如 <code>0x7F000001</code>）才需要用 <code>htonl()</code> 转网络序。</li>
+</ul>
+</li>
+<li><p><strong><code>inet_ntoa()</code> 线程不安全</strong>：</p>
+<ul>
+<li>它返回的是静态缓冲区，多线程下会被覆盖，优先用 <code>inet_ntop()</code>。</li>
+</ul>
+</li>
+<li><p><strong>非法 IP 处理</strong>：</p>
+<ul>
+<li><code>inet_addr()</code> 无法区分 <code>255.255.255.255</code> 和非法 IP（都返回 <code>-1</code>），推荐用 <code>inet_pton()</code>。</li>
+</ul>
+</li>
+<li><p><strong>缓冲区大小</strong>：</p>
+<ul>
+<li><code>inet_ntop()</code> 的 <code>dst</code> 缓冲区大小至少为 <code>INET_ADDRSTRLEN</code>（IPv4）&#x2F; <code>INET6_ADDRSTRLEN</code>（IPv6），避免缓冲区溢出。</li>
+</ul>
+</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/28/1-%E5%AD%97%E8%8A%82%E5%BA%8F%E5%92%8CIP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2/">http://example.com/2026/04/28/1-%E5%AD%97%E8%8A%82%E5%BA%8F%E5%92%8CIP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/04/28/2-socket%E7%BC%96%E7%A8%8B/" title="2.socket编程"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">2.socket编程</div></div><div class="info-2"><div class="info-item-1">socket编程 通信测试代码服务端1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374757677787980818283#include&lt;unistd.h&gt;      // 提供read/write/close等系统调用#include&lt;stdio.h&gt;       // 标准输入输出#include&lt;stdlib.h&gt;      // 标准库（exit等）#include&lt;string.h&gt;      // 字符串操作（memset等）#include&lt;stdint.h&gt;      // 整型类型（uint16_t等）#include&lt;arpa/inet.h&gt;   // 网络编程（inet_ntop/htons等）int main()&#123;    // 1. 创建监听套接字（...</div></div></div></a><a class="pagination-related" href="/2026/04/28/11-enable-if/" title="11.enable_if"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">11.enable_if</div></div><div class="info-2"><div class="info-item-1">enable_if一、std::enable_if 核心定义std::enable_if 是 C++11 引入的模板元编程工具，本质是条件编译模板，核心作用是：  根据一个编译期布尔条件，决定是否 “启用” 某个模板（函数 &#x2F; 类）； 底层完全依赖 SFINAE 规则：条件为 false 时，enable_if 的 type 成员不存在 → 模板替换失败，编译器跳过该版本；条件为 true 时，type 存在 → 模板正常启用。  官方定义（简化版）1234567891011template &lt;bool B, typename T = void&gt;struct enable_if &#123;&#125;; // 条件B为false时，无type成员template &lt;typename T&gt;struct enable_if&lt;true, T&gt; &#123; // 条件B为true时，定义type成员    using type = T;&#125;;// 常用别名（简化写法）template &lt;bool B, typename T ...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">14</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">2</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AD%97%E8%8A%82%E5%BA%8F"><span class="toc-number">1.</span> <span class="toc-text">字节序</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%AD%97%E8%8A%82%E5%BA%8F%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F%EF%BC%88%E9%80%9A%E4%BF%97%E7%90%86%E8%A7%A3%EF%BC%89"><span class="toc-number">1.1.</span> <span class="toc-text">1. 字节序是什么？（通俗理解）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E5%A4%A7%E7%AB%AF%E5%BA%8F%EF%BC%88Big-Endian%EF%BC%89%EF%BC%9A%E2%80%9C%E9%AB%98%E4%BD%8D%E5%9C%A8%E5%89%8D%E2%80%9D%EF%BC%88%E7%AC%A6%E5%90%88%E4%BA%BA%E7%B1%BB%E4%B9%A0%E6%83%AF%EF%BC%89"><span class="toc-number">1.1.1.</span> <span class="toc-text">1. 大端序（Big-Endian）：“高位在前”（符合人类习惯）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-%E5%B0%8F%E7%AB%AF%E5%BA%8F%EF%BC%88Little-Endian%EF%BC%89%EF%BC%9A%E2%80%9C%E4%BD%8E%E4%BD%8D%E5%9C%A8%E5%89%8D%E2%80%9D%EF%BC%88%E8%AE%A1%E7%AE%97%E6%9C%BA%E6%9B%B4%E5%B8%B8%E7%94%A8%EF%BC%89"><span class="toc-number">1.1.2.</span> <span class="toc-text">2. 小端序（Little-Endian）：“低位在前”（计算机更常用）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AD%97%E8%8A%82%E5%BA%8F%E7%9A%84%E5%88%86%E7%B1%BB"><span class="toc-number">1.2.</span> <span class="toc-text">2. 字节序的分类</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E4%B8%BB%E6%9C%BA%E5%AD%97%E8%8A%82%E5%BA%8F%EF%BC%88Host-Byte-Order%EF%BC%89"><span class="toc-number">1.2.1.</span> <span class="toc-text">（1）主机字节序（Host Byte Order）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E7%BD%91%E7%BB%9C%E5%AD%97%E8%8A%82%E5%BA%8F%EF%BC%88Network-Byte-Order%EF%BC%89"><span class="toc-number">1.2.2.</span> <span class="toc-text">（2）网络字节序（Network Byte Order）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E4%B8%BA%E4%BB%80%E4%B9%88%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B%E5%BF%85%E9%A1%BB%E8%BD%AC%E6%8D%A2%E5%AD%97%E8%8A%82%E5%BA%8F%EF%BC%9F"><span class="toc-number">1.3.</span> <span class="toc-text">3. 为什么网络编程必须转换字节序？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%AD%97%E8%8A%82%E5%BA%8F%E8%BD%AC%E6%8D%A2%E5%87%BD%E6%95%B0%EF%BC%88%E6%A0%B8%E5%BF%83%E5%B7%A5%E5%85%B7%EF%BC%89"><span class="toc-number">1.4.</span> <span class="toc-text">4. 字节序转换函数（核心工具）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B%EF%BC%9A%E5%AD%97%E8%8A%82%E5%BA%8F%E8%BD%AC%E6%8D%A2%E7%9A%84%E5%AE%9E%E9%99%85%E5%BA%94%E7%94%A8"><span class="toc-number">1.5.</span> <span class="toc-text">5. 代码示例：字节序转换的实际应用</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%BF%90%E8%A1%8C%E7%BB%93%E6%9E%9C%EF%BC%88%E5%B0%8F%E7%AB%AF%E6%9C%BA%E5%99%A8%EF%BC%89%EF%BC%9A"><span class="toc-number">1.5.1.</span> <span class="toc-text">运行结果（小端机器）：</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-number">1.6.</span> <span class="toc-text">6. 关键注意事项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">1.7.</span> <span class="toc-text">总结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#IP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2"><span class="toc-number">2.</span> <span class="toc-text">IP地址转换</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%8D%E4%BE%8B%EF%BC%88%E9%94%99%E8%AF%AF%EF%BC%89%EF%BC%9A%E7%BC%93%E5%86%B2%E5%8C%BA%E5%A4%AA%E5%B0%8F%E5%AF%BC%E8%87%B4%E6%BA%A2%E5%87%BA"><span class="toc-number">2.0.1.</span> <span class="toc-text">反例（错误）：缓冲区太小导致溢出</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%AD%A3%E4%BE%8B%EF%BC%88%E6%AD%A3%E7%A1%AE%EF%BC%89%EF%BC%9A%E7%94%A8-INET-ADDRSTRLEN-%E5%AE%9A%E4%B9%89%E7%BC%93%E5%86%B2%E5%8C%BA"><span class="toc-number">2.0.2.</span> <span class="toc-text">正例（正确）：用 INET_ADDRSTRLEN 定义缓冲区</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AF%B9%E6%AF%94%EF%BC%9AIPv6-%E5%AF%B9%E5%BA%94%E7%9A%84%E5%B8%B8%E9%87%8F"><span class="toc-number">2.1.</span> <span class="toc-text">三、对比：IPv6 对应的常量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E9%81%BF%E5%9D%91%E8%A6%81%E7%82%B9"><span class="toc-number">2.2.</span> <span class="toc-text">关键避坑要点</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/2-socket%E7%BC%96%E7%A8%8B/" title="2.socket编程">2.socket编程</a><time datetime="2026-04-28T07:36:41.000Z" title="Created 2026-04-28 15:36:41">2026-04-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/1-%E5%AD%97%E8%8A%82%E5%BA%8F%E5%92%8CIP%E5%9C%B0%E5%9D%80%E8%BD%AC%E6%8D%A2/" title="1.字节序和IP地址转换">1.字节序和IP地址转换</a><time datetime="2026-04-28T07:36:14.000Z" title="Created 2026-04-28 15:36:14">2026-04-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/11-enable-if/" title="11.enable_if">11.enable_if</a><time datetime="2026-04-28T07:27:35.000Z" title="Created 2026-04-28 15:27:35">2026-04-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/10-SFINAE/" title="10.SFINAE">10.SFINAE</a><time datetime="2026-04-28T07:27:04.000Z" title="Created 2026-04-28 15:27:04">2026-04-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/9-%E6%A8%A1%E6%9D%BF%E6%8A%98%E5%8F%A0/" title="9.模板折叠">9.模板折叠</a><time datetime="2026-04-28T06:50:05.000Z" title="Created 2026-04-28 14:50:05">2026-04-28</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
