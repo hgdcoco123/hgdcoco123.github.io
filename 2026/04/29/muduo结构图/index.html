@@ -1,0 +1,233 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>muduo结构图 | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="核心事件流转完整流程图（从监听连接到数据收发）123456789101112131415161718192021222324252627282930313233343536启动TcpServer    │    ▼创建Acceptor → 绑定baseLoop(主EventLoop) → 创建listenfd → socket&#x2F;bind&#x2F;listen    │    ▼Acceptor创建Acc">
+<meta property="og:type" content="article">
+<meta property="og:title" content="muduo结构图">
+<meta property="og:url" content="http://example.com/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="核心事件流转完整流程图（从监听连接到数据收发）123456789101112131415161718192021222324252627282930313233343536启动TcpServer    │    ▼创建Acceptor → 绑定baseLoop(主EventLoop) → 创建listenfd → socket&#x2F;bind&#x2F;listen    │    ▼Acceptor创建Acc">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-29T13:04:52.000Z">
+<meta property="article:modified_time" content="2026-04-29T13:21:29.660Z">
+<meta property="article:author" content="dinghai">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "muduo结构图",
+  "url": "http://example.com/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-29T13:04:52.000Z",
+  "dateModified": "2026-04-29T13:21:29.660Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'muduo结构图',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">muduo结构图</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">muduo结构图</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-29T13:04:52.000Z" title="Created 2026-04-29 21:04:52">2026-04-29</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-29T13:21:29.660Z" title="Updated 2026-04-29 21:21:29">2026-04-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/muduo%E9%87%8D%E6%9E%84/">muduo重构</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><p><img src="/images/muduo.drawio.svg" alt="muduo.drawio"></p>
+<h2 id="核心事件流转完整流程图（从监听连接到数据收发）"><a href="#核心事件流转完整流程图（从监听连接到数据收发）" class="headerlink" title="核心事件流转完整流程图（从监听连接到数据收发）"></a>核心事件流转完整流程图（从监听连接到数据收发）</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">启动TcpServer</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">创建Acceptor → 绑定baseLoop(主EventLoop) → 创建listenfd → socket/bind/listen</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">Acceptor创建AcceptorChannel(绑定listenfd) → 注册到baseLoop的Poller</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">baseLoop进入EventLoop::loop() → Poller调用epoll_wait监听listenfd的可读事件</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">客户端发起连接 → listenfd触发可读事件</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">Poller将AcceptorChannel加入activeChannels_ → EventLoop处理Channel回调</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">Acceptor执行accept() → 获取新连接connfd → 创建TcpConnection实例</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">TcpConnection创建Socket(封装connfd)、ConnectionChannel(绑定connfd)</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">通过EventLoopThreadPool轮询getNextLoop() → 选择一个subLoop(从EventLoop)</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">将ConnectionChannel注册到subLoop的Poller → subLoop监听connfd的读写事件</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">TcpConnection维护发送/接收Buffer → 数据流转:</span><br><span class="line">    应用数据 → Buffer → TCP发送缓冲区 → send()</span><br><span class="line">    recv() → TCP接收缓冲区 → Buffer → 应用数据</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">TcpServer维护connections_，管理所有TcpConnection实例</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="关键模块关系明细"><a href="#关键模块关系明细" class="headerlink" title="关键模块关系明细"></a>关键模块关系明细</h2><h3 id="1-Reactor-核心链（EventLoop-→-Poller-→-Channel）"><a href="#1-Reactor-核心链（EventLoop-→-Poller-→-Channel）" class="headerlink" title="1. Reactor 核心链（EventLoop → Poller → Channel）"></a>1. Reactor 核心链（EventLoop → Poller → Channel）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">EventLoop (Reactor)</span><br><span class="line">├─ poller_ (Poller/EPollPoller)</span><br><span class="line">│  └─ channels_ (unordered_map&lt;int, Channel*&gt;)</span><br><span class="line">│     ├─ AcceptorChannel (listenfd，主loop持有)</span><br><span class="line">│     └─ ConnectionChannel (connfd，subLoop持有)</span><br><span class="line">├─ activeChannels_ (本次事件循环的活跃Channel列表)</span><br><span class="line">├─ wakeupFd / wakeupChannel (跨线程唤醒EventLoop)</span><br><span class="line">└─ 绑定线程: one loop per thread (EventLoopThread)</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-连接管理链（TcpServer-→-Acceptor-→-TcpConnection）"><a href="#2-连接管理链（TcpServer-→-Acceptor-→-TcpConnection）" class="headerlink" title="2. 连接管理链（TcpServer → Acceptor → TcpConnection）"></a>2. 连接管理链（TcpServer → Acceptor → TcpConnection）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">TcpServer</span><br><span class="line">├─ Acceptor (主loop持有，监听新连接)</span><br><span class="line">│  └─ 触发accept() → 创建TcpConnection</span><br><span class="line">├─ EventLoopThreadPool (管理多个subLoop)</span><br><span class="line">│  └─ 轮询分配subLoop给新连接</span><br><span class="line">└─ connections_ (存储所有TcpConnection)</span><br><span class="line">   └─ 每个TcpConnection对应一个客户端连接</span><br><span class="line">      ├─ Socket (封装connfd)</span><br><span class="line">      ├─ ConnectionChannel (注册到subLoop)</span><br><span class="line">      ├─ 发送Buffer</span><br><span class="line">      └─ 接收Buffer</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-缓冲区数据链路（Buffer）"><a href="#3-缓冲区数据链路（Buffer）" class="headerlink" title="3. 缓冲区数据链路（Buffer）"></a>3. 缓冲区数据链路（Buffer）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">应用层数据</span><br><span class="line">    ↓ (写入)</span><br><span class="line">Buffer (prependable空间 + readeridx + writeridx)</span><br><span class="line">    ↓ (写入)</span><br><span class="line">TCP内核发送缓冲区</span><br><span class="line">    ↓ (系统调用)</span><br><span class="line">send() → 网络传输</span><br><span class="line">    ↓ (对端接收)</span><br><span class="line">TCP内核接收缓冲区</span><br><span class="line">    ↓ (读取)</span><br><span class="line">Buffer</span><br><span class="line">    ↓ (读取)</span><br><span class="line">应用层数据</span><br></pre></td></tr></table></figure>
+
+
+
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>核心职责</th>
+<th>关键成员 &#x2F; 操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Channel</strong></td>
+<td>事件通道，封装 fd 与回调</td>
+<td>fd、events、revents、callbacks；分 AcceptorChannel&#x2F;ConnectionChannel</td>
+</tr>
+<tr>
+<td><strong>Poller&#x2F;EPollPoller</strong></td>
+<td>I&#x2F;O 多路复用，事件分发</td>
+<td>unordered_map&lt;int, Channel*&gt; channels；epoll_wait 监听事件</td>
+</tr>
+<tr>
+<td><strong>EventLoop</strong></td>
+<td>Reactor 核心，事件循环</td>
+<td>activeChannels_、poller_、wakeupFd、wakeupChannel；loop () 循环</td>
+</tr>
+<tr>
+<td><strong>EventLoopThread</strong></td>
+<td>线程封装，绑定 EventLoop</td>
+<td>one loop per thread</td>
+</tr>
+<tr>
+<td><strong>EventLoopThreadPool</strong></td>
+<td>线程池，轮询分配 loop</td>
+<td>getNextLoop () 轮询算法</td>
+</tr>
+<tr>
+<td><strong>Socket</strong></td>
+<td>封装 socket 操作</td>
+<td>封装 connfd 的 bind&#x2F;listen&#x2F;connect 等</td>
+</tr>
+<tr>
+<td><strong>Acceptor</strong></td>
+<td>监听新连接</td>
+<td>封装 listenfd；socket&#x2F;bind&#x2F;listen；绑定 baseLoop</td>
+</tr>
+<tr>
+<td><strong>Buffer</strong></td>
+<td>应用层缓冲区</td>
+<td>prependable、readeridx、writeridx；数据中转</td>
+</tr>
+<tr>
+<td><strong>TcpConnection</strong></td>
+<td>客户端连接实例</td>
+<td>每个连接对应一个实例；持有 Socket&#x2F;Channel&#x2F;Buffer&#x2F; 回调</td>
+</tr>
+<tr>
+<td><strong>TcpServer</strong></td>
+<td>服务端入口</td>
+<td>持有 Acceptor &#x2F; 线程池；管理所有 TcpConnection</td>
+</tr>
+</tbody></table>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/">http://example.com/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width no-desc" href="/2026/04/29/%E5%8E%9F%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90/" title="原代码解析"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">原代码解析</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E4%BA%8B%E4%BB%B6%E6%B5%81%E8%BD%AC%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B%E5%9B%BE%EF%BC%88%E4%BB%8E%E7%9B%91%E5%90%AC%E8%BF%9E%E6%8E%A5%E5%88%B0%E6%95%B0%E6%8D%AE%E6%94%B6%E5%8F%91%EF%BC%89"><span class="toc-number">1.</span> <span class="toc-text">核心事件流转完整流程图（从监听连接到数据收发）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E6%A8%A1%E5%9D%97%E5%85%B3%E7%B3%BB%E6%98%8E%E7%BB%86"><span class="toc-number">2.</span> <span class="toc-text">关键模块关系明细</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-Reactor-%E6%A0%B8%E5%BF%83%E9%93%BE%EF%BC%88EventLoop-%E2%86%92-Poller-%E2%86%92-Channel%EF%BC%89"><span class="toc-number">2.1.</span> <span class="toc-text">1. Reactor 核心链（EventLoop → Poller → Channel）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%BF%9E%E6%8E%A5%E7%AE%A1%E7%90%86%E9%93%BE%EF%BC%88TcpServer-%E2%86%92-Acceptor-%E2%86%92-TcpConnection%EF%BC%89"><span class="toc-number">2.2.</span> <span class="toc-text">2. 连接管理链（TcpServer → Acceptor → TcpConnection）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%95%B0%E6%8D%AE%E9%93%BE%E8%B7%AF%EF%BC%88Buffer%EF%BC%89"><span class="toc-number">2.3.</span> <span class="toc-text">3. 缓冲区数据链路（Buffer）</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/" title="muduo结构图">muduo结构图</a><time datetime="2026-04-29T13:04:52.000Z" title="Created 2026-04-29 21:04:52">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/%E5%8E%9F%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90/" title="原代码解析">原代码解析</a><time datetime="2026-04-29T13:04:35.000Z" title="Created 2026-04-29 21:04:35">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day21-%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC%E5%92%8C%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81/" title="day21-编译安装脚本和测试代码">day21-编译安装脚本和测试代码</a><time datetime="2026-04-29T13:03:54.000Z" title="Created 2026-04-29 21:03:54">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day20-TcpServer-TcpConnection/" title="day20-TcpServer+TcpConnection">day20-TcpServer+TcpConnection</a><time datetime="2026-04-29T13:03:34.000Z" title="Created 2026-04-29 21:03:34">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day19-TcpConnection/" title="day19-TcpConnection">day19-TcpConnection</a><time datetime="2026-04-29T13:03:21.000Z" title="Created 2026-04-29 21:03:21">2026-04-29</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

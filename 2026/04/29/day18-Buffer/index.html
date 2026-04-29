@@ -1,0 +1,400 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>day18-Buffer | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Buffer 是网络编程里专门用来高效收发 TCP 数据的 “内存缓冲区”，用来解决 TCP 粘包、半包、读写效率低等问题 Buffer都干什么？  接收网络数据：从 TCP 连接里读数据存起来  暂存待发送数据：要发的数据先放这里，等能发了再发  自动管理内存：自动扩容、自动整理空间，不用你手动 malloc&#x2F;free   Buffer.h1234567891011121314#pr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="day18-Buffer">
+<meta property="og:url" content="http://example.com/2026/04/29/day18-Buffer/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="Buffer 是网络编程里专门用来高效收发 TCP 数据的 “内存缓冲区”，用来解决 TCP 粘包、半包、读写效率低等问题 Buffer都干什么？  接收网络数据：从 TCP 连接里读数据存起来  暂存待发送数据：要发的数据先放这里，等能发了再发  自动管理内存：自动扩容、自动整理空间，不用你手动 malloc&#x2F;free   Buffer.h1234567891011121314#pr">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-29T13:03:04.000Z">
+<meta property="article:modified_time" content="2026-04-29T13:16:31.027Z">
+<meta property="article:author" content="dinghai">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "day18-Buffer",
+  "url": "http://example.com/2026/04/29/day18-Buffer/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-29T13:03:04.000Z",
+  "dateModified": "2026-04-29T13:16:31.027Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/29/day18-Buffer/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'day18-Buffer',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">day18-Buffer</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">day18-Buffer</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-29T13:03:04.000Z" title="Created 2026-04-29 21:03:04">2026-04-29</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-29T13:16:31.027Z" title="Updated 2026-04-29 21:16:31">2026-04-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/muduo%E9%87%8D%E6%9E%84/">muduo重构</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><p> <strong>Buffer 是网络编程里专门用来高效收发 TCP 数据的 “内存缓冲区”</strong>，用来解决 TCP 粘包、半包、读写效率低等问题</p>
+<p><strong>Buffer都干什么？</strong></p>
+<ol>
+<li><p><strong>接收网络数据</strong>：从 TCP 连接里读数据存起来</p>
+</li>
+<li><p><strong>暂存待发送数据</strong>：要发的数据先放这里，等能发了再发</p>
+</li>
+<li><p><strong>自动管理内存</strong>：自动扩容、自动整理空间，不用你手动 malloc&#x2F;free</p>
+</li>
+</ol>
+<h2 id="Buffer-h"><a href="#Buffer-h" class="headerlink" title="Buffer.h"></a>Buffer.h</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">pragma</span> once</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;vector&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/types.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">+-------------------+-----------------------+---------------------------+</span></span><br><span class="line"><span class="comment">| 前置预留区          | 可读区 (readable)      | 可写区 (writable)          |</span></span><br><span class="line"><span class="comment">| (kCheapPrepend=8) |                       |                           |</span></span><br><span class="line"><span class="comment">+-------------------+-----------------------+---------------------------+</span></span><br><span class="line"><span class="comment">↑                   ↑                       ↑                           ↑</span></span><br><span class="line"><span class="comment">0           readerIndex_             writerIndex_               buffer_.size()</span></span><br><span class="line"><span class="comment">*/</span> </span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h3 id="私有成员变量"><a href="#私有成员变量" class="headerlink" title="私有成员变量"></a>私有成员变量</h3><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">std::vector&lt;<span class="type">char</span>&gt; buffer_;</span><br><span class="line"><span class="type">size_t</span> readerIndex_;</span><br><span class="line"><span class="type">size_t</span> writerIndex_;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><code>readerIndex_</code>：可读数据开始位置</p>
+</li>
+<li><p><code>writerIndex_</code>：可写空间开始位置</p>
+</li>
+<li><p><code>vector&lt;char&gt; buffer_</code>：真正存数据的内存</p>
+</li>
+</ul>
+<h3 id="内部函数"><a href="#内部函数" class="headerlink" title="内部函数"></a>内部函数</h3><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">makeSpace</span><span class="params">(<span class="type">size_t</span> len)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>扩容函数（核心）</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">char</span>* <span class="title">begin</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> buffer_.<span class="built_in">data</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">const</span> <span class="type">char</span>* <span class="title">begin</span><span class="params">()</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> buffer_.<span class="built_in">data</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>获取<strong>底层 vector 内存的首地址</strong>（缓冲区最开始的位置），所有读写指针都是基于这个地址做偏移计算</p>
+<h4 id="为什么要实现常量和非常量两个版本？"><a href="#为什么要实现常量和非常量两个版本？" class="headerlink" title="为什么要实现常量和非常量两个版本？"></a>为什么要实现常量和非常量两个版本？</h4><ul>
+<li>本质是<strong>函数重载</strong>，<code>const</code> 成员函数里，只能调用<code>const</code>版本的 <code>begin ()</code></li>
+</ul>
+<p>① 非常量版本 <code>char* begin()</code></p>
+<p>用于<strong>修改数据</strong>：<code>append / writeFd / makeSpace</code>等需要修改缓冲区内容 → 必须返回<strong>可写指针</strong>。</p>
+<p>② 常量版本 <code>const char* begin() const</code></p>
+<p>用于<strong>只读数据</strong>：<code>peek() / readableBytes() 等 const 成员函数</code>等只看数据，不修改 → 必须返回<strong>只读指针</strong>。</p>
+<h3 id="共有函数"><a href="#共有函数" class="headerlink" title="共有函数"></a>共有函数</h3><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Buffer</span></span><br><span class="line">&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="type">static</span> <span class="type">const</span> <span class="type">int</span> kCheapPrepend = <span class="number">8</span>;</span><br><span class="line">    <span class="type">static</span> <span class="type">const</span> <span class="type">int</span> kInitialSize = <span class="number">1024</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">explicit</span> <span class="title">Buffer</span><span class="params">(<span class="type">size_t</span> initialSize = kInitialSize)</span></span></span><br><span class="line"><span class="function">        : buffer_(kCheapPrepend + initialSize)</span></span><br><span class="line"><span class="function">        , readerIndex_(kCheapPrepend)</span></span><br><span class="line"><span class="function">        , writerIndex_(kCheapPrepend)</span></span><br><span class="line"><span class="function">    &#123;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><code>static const int kCheapPrepend = 8;</code><strong>前面预留 8 字节空位！</strong>，专门给<strong>发送消息时插 4&#x2F;8 字节协议头</strong>用。</p>
+</li>
+<li><p><code>static const int kInitialSize = 1024;</code>缓冲区默认大小 <strong>1024 字节</strong>，不够自动扩容</p>
+</li>
+<li><p>读写指针都初始化都8字节处，前面8个字节留着给数据头用</p>
+</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">readableBytes</span><span class="params">()</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> writerIndex_ - readerIndex_; </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">writableBytes</span><span class="params">()</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> buffer_.<span class="built_in">size</span>() - writerIndex_;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">size_t</span> <span class="title">prependable</span><span class="params">()</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> readerIndex_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>计算缓冲区三块区域分别有多大</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//返回缓冲区可读数据起始地址</span></span><br><span class="line"><span class="function"><span class="type">const</span> <span class="type">char</span>* <span class="title">peek</span><span class="params">()</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">begin</span>() + readerIndex_;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">char</span>* <span class="title">beginWrite</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">begin</span>() + writerIndex_;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">const</span> <span class="type">char</span>* <span class="title">beginWrite</span><span class="params">()</span> <span class="type">const</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">begin</span>() + writerIndex_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>分别返回可读区和可写区的起始地址</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//从fd上读数据</span></span><br><span class="line">   <span class="function"><span class="type">ssize_t</span> <span class="title">readFd</span><span class="params">(<span class="type">int</span> fd, <span class="type">int</span>* saveErrno)</span></span>;</span><br><span class="line">   <span class="comment">//通过fd写数据</span></span><br><span class="line">   <span class="function"><span class="type">ssize_t</span> <span class="title">writeFd</span><span class="params">(<span class="type">int</span> fd, <span class="type">int</span>* saveErrno)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>核心读写函数</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">retrieve</span><span class="params">(<span class="type">size_t</span> len)</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">       <span class="keyword">if</span>(len &lt; <span class="built_in">readableBytes</span>())</span><br><span class="line">       &#123;</span><br><span class="line">           readerIndex_ += len;</span><br><span class="line">       &#125;</span><br><span class="line">       <span class="keyword">else</span></span><br><span class="line">       &#123;</span><br><span class="line">           <span class="built_in">retrieveAll</span>();</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="function"><span class="type">void</span> <span class="title">retrieveAll</span><span class="params">()</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">       readerIndex_ = writerIndex_ = kCheapPrepend;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+
+<p>读完数据怎么清除缓冲区</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">std::string <span class="title">retrieveAllAsString</span><span class="params">()</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> <span class="built_in">retrieveAsString</span>(<span class="built_in">readableBytes</span>());</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="function">std::string <span class="title">retrieveAsString</span><span class="params">(<span class="type">size_t</span> len)</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">       <span class="function">std::string <span class="title">result</span><span class="params">(peek(), len)</span></span>;</span><br><span class="line">       <span class="built_in">retrieve</span>(len);</span><br><span class="line">       <span class="keyword">return</span> result;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+
+<p>读缓冲区数据，并清空缓冲区</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">ensureWritableByte</span><span class="params">(<span class="type">size_t</span> len)</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">       <span class="keyword">if</span>(len &gt; <span class="built_in">writableBytes</span>())</span><br><span class="line">       &#123;</span><br><span class="line">           <span class="built_in">makeSpace</span>(len);</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="comment">//往缓冲区写数据</span></span><br><span class="line">   <span class="function"><span class="type">void</span> <span class="title">append</span><span class="params">(<span class="type">const</span> <span class="type">char</span>* data, <span class="type">size_t</span> len)</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">       <span class="built_in">ensureWritableByte</span>(len);</span><br><span class="line">       std::<span class="built_in">copy</span>(data, data + len, <span class="built_in">beginWrite</span>()); <span class="comment">//copy三个参数：从哪开始，到哪结束，往哪放 </span></span><br><span class="line">       writerIndex_ += len;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+
+<p>往 Buffer 里写数据，先检查空间够不够 → 不够就扩容 &#x2F; 整理 → 然后拷贝数据 → 移动写指针</p>
+<h2 id="Buffer-cc"><a href="#Buffer-cc" class="headerlink" title="Buffer.cc"></a>Buffer.cc</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;Buffer.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/uio.h&gt;</span></span></span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">Buffer::makeSpace</span><span class="params">(<span class="type">size_t</span> len)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span>(<span class="built_in">writableBytes</span>() + <span class="built_in">prependable</span>() &lt; len + kCheapPrepend)</span><br><span class="line">    &#123;</span><br><span class="line">        buffer_.<span class="built_in">resize</span>(len + writerIndex_)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="type">size_t</span> readable = <span class="built_in">readableBytes</span>();</span><br><span class="line">        std::<span class="built_in">copy</span>(</span><br><span class="line">            <span class="built_in">begin</span>() + readerIndex_,</span><br><span class="line">            <span class="built_in">begin</span>() + writerIndex_,</span><br><span class="line">            <span class="built_in">begin</span>() + kCheapPrepend</span><br><span class="line">        );</span><br><span class="line">        readerIndex_ = kCheapPrepend;</span><br><span class="line">        writerIndex_ = kCheapPrepend + readable;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>扩容逻辑：</strong><ul>
+<li><strong>剩余可写区空间（writableBytes()）</strong> + <strong>0~读指针空间(prependable())</strong>  &lt; <strong>要写入的数据(len)</strong> + <strong>预留8字节(kCheapPrepend)</strong> 时直接<strong>把 vector 底层内存变大</strong>为<code>len + writerIndex_</code>（<strong>当前数据长度 + 需要的空间</strong>）<ul>
+<li>先保存当前<strong>可读数据长度</strong>，因为后面会移动读写指针，所以要先保存</li>
+<li>把中间的可读数据，整块搬到从 8 号位置开始（**<code>copy(...)</code>**）</li>
+<li>重置读指针：8</li>
+<li>重置写指针：8 + 数据长度</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="扩容逻辑设计优点"><a href="#扩容逻辑设计优点" class="headerlink" title="扩容逻辑设计优点"></a>扩容逻辑设计优点</h3><ol>
+<li><p>空间够时不扩容，<strong>数据前移整理</strong>，<strong>不申请新内存</strong>，仅仅是一段内存拷贝<strong>CPU 极快</strong></p>
+</li>
+<li><p>TCP 只能读写 <strong>连续内存</strong>，数据整体前移整理，保证内存连续，不会乱</p>
+</li>
+<li><p>扩容 <code>resize()</code> 会<strong>重新分配内存、拷贝所有数据、释放旧内存</strong>，但Buffer 初始化大小 （1024）后，正常收发消息，数据读完就 retrieve，空间不够就往前移，很少走到 resize 扩容那一步</p>
+</li>
+</ol>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//从fd上读数据</span></span><br><span class="line"><span class="function"><span class="type">ssize_t</span> <span class="title">Buffer::readFd</span><span class="params">(<span class="type">int</span> fd, <span class="type">int</span>* saveErrno)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">char</span> extraBuf[<span class="number">65536</span>];</span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">iovec</span> vec[<span class="number">2</span>];</span><br><span class="line"></span><br><span class="line">    <span class="type">size_t</span> writable = <span class="built_in">writableBytes</span>();</span><br><span class="line">    vec[<span class="number">0</span>].iov_base = <span class="built_in">begin</span>() + writerIndex_;</span><br><span class="line">    vec[<span class="number">0</span>].iov_len = writable;</span><br><span class="line">    vec[<span class="number">1</span>].iov_base = extraBuf;</span><br><span class="line">    vec[<span class="number">1</span>].iov_len = <span class="keyword">sizeof</span> extraBuf;</span><br><span class="line"></span><br><span class="line">    <span class="type">const</span> <span class="type">int</span> iovcnt = writable &lt; <span class="built_in">sizeof</span>(extraBuf) ? <span class="number">2</span> : <span class="number">1</span>;</span><br><span class="line">    <span class="type">const</span> <span class="type">ssize_t</span> n = ::<span class="built_in">readv</span>(fd, vec, iovcnt);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>(n &lt; <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        *saveErrno = errno;<span class="comment">//Buffer是基础组件，只传递错误信息，不打印日志</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span>(n &lt; writable)</span><br><span class="line">    &#123;</span><br><span class="line">        writerIndex_ += n;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="comment">// extrabuf里面也写入了数据 </span></span><br><span class="line">    &#123;</span><br><span class="line">        writerIndex_ = buffer_.<span class="built_in">size</span>();</span><br><span class="line">        <span class="built_in">append</span>(extraBuf, n - writable); <span class="comment">// writerIndex_开始写 n - writable大小的数据</span></span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> n;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="iovec是什么？"><a href="#iovec是什么？" class="headerlink" title="iovec是什么？"></a>iovec是什么？</h3><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/uio.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">struct</span> <span class="title class_">iovec</span> &#123;</span><br><span class="line">    <span class="type">void</span>  *iov_base;    <span class="comment">// 缓冲区起始地址（指针）</span></span><br><span class="line">    <span class="type">size_t</span> iov_len;     <span class="comment">// 缓冲区长度（字节数）</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><strong>一个 iovec &#x3D; 一段连续内存的（地址 + 长度）</strong>，它本身<strong>不存储数据</strong>，只是<strong>描述一段数据在哪里、有多长</strong>。</p>
+</li>
+<li><p>作用：<strong>一次系统调用，读写多块不连续内存</strong></p>
+<ul>
+<li>但现实中数据经常是分散的，如：协议头一块，消息体一块或像逻辑里要读多块内存数据</li>
+<li>如果用普通 write：<ul>
+<li>必须先把多块内存拷贝合并成一块大连续内存</li>
+<li>再调用 write</li>
+<li>多一次内存拷贝 → 性能损耗</li>
+</ul>
+</li>
+<li>用 iovec + writev&#x2F;readv：<ul>
+<li>不用拷贝、不用合并</li>
+<li>直接把多块分散内存打包成一个 iovec[] 数组</li>
+<li>一次系统调用全部发出去</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">ssize_t</span> <span class="title">writev</span><span class="params">(<span class="type">int</span> fd, <span class="type">const</span> <span class="keyword">struct</span> iovec *iov, <span class="type">int</span> iovcnt)</span></span>;</span><br><span class="line"><span class="function"><span class="type">ssize_t</span> <span class="title">readv</span><span class="params">(<span class="type">int</span> fd, <span class="keyword">struct</span> iovec *iov, <span class="type">int</span> iovcnt)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><code>fd</code>：文件描述符（socket、文件都可以）</p>
+</li>
+<li><p><code>iov</code>：<strong>iovec 数组</strong>（每一项代表一段数据）</p>
+</li>
+<li><p><code>iovcnt</code>：数组元素个数（几块内存）</p>
+</li>
+<li><p>返回：成功写入的总字节数</p>
+</li>
+</ul>
+<h3 id="readFd-逻辑"><a href="#readFd-逻辑" class="headerlink" title="readFd()逻辑"></a>readFd()逻辑</h3><h4 id="1-栈上临时缓冲区：extraBuf-65536"><a href="#1-栈上临时缓冲区：extraBuf-65536" class="headerlink" title="1. 栈上临时缓冲区：extraBuf[65536]"></a>1. 栈上临时缓冲区：<code>extraBuf[65536]</code></h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">char</span> extraBuf[<span class="number">65536</span>];</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>64KB 栈内存</strong>，极快、无需 malloc、无需释放。</li>
+<li><strong>作用</strong>：当 <strong>Buffer 内部缓冲区不够大</strong>时，作为<strong>临时收容所</strong>。</li>
+<li>为什么 64K？Linux 内核默认 socket 接收缓冲区大小一般就是 64K，一次能读完，避免多次系统调用。</li>
+</ul>
+<h4 id="2-iovec-vec-2-：两块内存区域"><a href="#2-iovec-vec-2-：两块内存区域" class="headerlink" title="2. iovec vec[2]：两块内存区域"></a>2. <code>iovec vec[2]</code>：两块内存区域</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">iovec</span> vec[<span class="number">2</span>];</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>准备<strong>两块连续内存</strong>，用 <code>readv</code> 一次性读取。</li>
+<li>这是<strong>分散读</strong>：内核把数据依次填入两块内存，<strong>完全零拷贝</strong>。</li>
+</ul>
+<h4 id="3-第一块：Buffer-内部可写区"><a href="#3-第一块：Buffer-内部可写区" class="headerlink" title="3. 第一块：Buffer 内部可写区"></a>3. 第一块：Buffer 内部可写区</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">size_t</span> writable = <span class="built_in">writableBytes</span>();</span><br><span class="line">vec[<span class="number">0</span>].iov_base = <span class="built_in">begin</span>() + writerIndex_;</span><br><span class="line">vec[<span class="number">0</span>].iov_len = writable;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>iov_base</code>：Buffer 内部可写地址</li>
+<li><code>iov_len</code>：可写长度</li>
+<li><strong>优先把数据读到 Buffer 内部</strong></li>
+</ul>
+<h4 id="4-第二块：栈上临时区"><a href="#4-第二块：栈上临时区" class="headerlink" title="4. 第二块：栈上临时区"></a>4. 第二块：栈上临时区</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">vec[<span class="number">1</span>].iov_base = extraBuf;</span><br><span class="line">vec[<span class="number">1</span>].iov_len = <span class="keyword">sizeof</span> extraBuf;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>备用缓冲区，<strong>只有内部缓冲区满了才会用到</strong>。</li>
+</ul>
+<h4 id="5-决定用几块内存读"><a href="#5-决定用几块内存读" class="headerlink" title="5. 决定用几块内存读"></a>5. 决定用几块内存读</h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">int</span> iovcnt = writable &lt; <span class="built_in">sizeof</span>(extraBuf) ? <span class="number">2</span> : <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>如果 <strong>Buffer 内部可写空间 ≥ 64K</strong>：只需要一块（vec [0]）</li>
+<li>如果 <strong>Buffer 内部可写空间 &lt; 64K</strong>：用两块（vec [0] + vec [1]）</li>
+<li>避免浪费，也避免读不下</li>
+</ul>
+<h4 id="6-核心调用：readv"><a href="#6-核心调用：readv" class="headerlink" title="6. 核心调用：readv"></a>6. 核心调用：<code>readv</code></h4><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> <span class="type">ssize_t</span> n = ::<span class="built_in">readv</span>(fd, vec, iovcnt);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><strong>一次系统调用，读取多块分散内存</strong></p>
+</li>
+<li><p>内核自动把数据按顺序填入：</p>
+<ol>
+<li>先填 vec [0]（Buffer 内部）</li>
+<li>填满了再填 vec [1]（extraBuf）</li>
+</ol>
+</li>
+<li><p><strong>真正的零拷贝、高性能</strong></p>
+</li>
+</ul>
+<p><strong>三种返回值处理</strong></p>
+<p>① 读失败：n &lt; 0</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span>(n &lt; <span class="number">0</span>)</span><br><span class="line">&#123;</span><br><span class="line">    *saveErrno = errno;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>只保存错误码，不打印、不处理</li>
+<li>基础库组件只负责传递错误，不决定错误处理策略</li>
+</ul>
+<p>② 数据很少：全部写入内部缓冲区</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">else</span> <span class="keyword">if</span>(n &lt; writable)</span><br><span class="line">&#123;</span><br><span class="line">    writerIndex_ += n;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>数据量 ≤ 内部可写空间</li>
+<li>直接移动写指针即可</li>
+<li><strong>零拷贝、零开销</strong></li>
+</ul>
+<p>③ 数据很多：内部缓冲区写满，剩余写入 extraBuf</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">    writerIndex_ = buffer_.<span class="built_in">size</span>();</span><br><span class="line">    <span class="built_in">append</span>(extraBuf, n - writable);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>内部缓冲区已经<strong>写满</strong></li>
+<li>剩下的数据被内核放到了 <code>extraBuf</code></li>
+<li>把 <code>extraBuf</code> 里的数据<strong>追加</strong>到 Buffer 内部，<strong>extraBuf 在栈上，函数退出数据就丢，必须把数据拷贝进 Buffer 长期保存</strong></li>
+</ol>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//通过fd写数据</span></span><br><span class="line"><span class="function"><span class="type">ssize_t</span> <span class="title">Buffer::writeFd</span><span class="params">(<span class="type">int</span> fd, <span class="type">int</span>* saveErrno)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">ssize_t</span> n = ::<span class="built_in">write</span>(fd, <span class="built_in">peek</span>(), <span class="built_in">readableBytes</span>());</span><br><span class="line">    <span class="keyword">if</span> (n &lt; <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        *saveErrno = errno;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> n;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这是muduo缓冲区写函数<strong>简化版</strong>，把当前缓冲区里所有可读数据，一次性发给 fd。</p>
+<p>真正muduo Buffer 是环状结构，当数据写到末尾，会从头部继续写，导致<strong>可读数据被切成两块</strong>：末尾一段，开头一段。这时候：</p>
+<p><strong>不能用一次 <code>write</code> 发完</strong>，<strong>必须用 <code>writev</code> 把两块一起发</strong></p>
+<h3 id="Buffer设计逻辑"><a href="#Buffer设计逻辑" class="headerlink" title="Buffer设计逻辑"></a>Buffer设计逻辑</h3><p><strong>Buffer 靠两个指针管理一块连续内存，读过不删、不够才紧缩；读数据用 readv + 栈上 extraBuf 一次性读满内核数据，减少系统调用，既省内存又高性能；写数据直接发送，结构简单高效。</strong></p>
+<h4 id="读数据完整流程（接收消息）"><a href="#读数据完整流程（接收消息）" class="headerlink" title="读数据完整流程（接收消息）"></a>读数据完整流程（接收消息）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">readFd() 从 socket 读到可写区</span><br><span class="line">   ↓</span><br><span class="line">writeIndex_ 后移</span><br><span class="line">   ↓</span><br><span class="line">可读区 = 收到的数据</span><br><span class="line">   ↓</span><br><span class="line">上层 peek() 查看4字节长度头</span><br><span class="line">   ↓</span><br><span class="line">判断数据够不够一条消息</span><br><span class="line">   ↓</span><br><span class="line">够 → retrieve() 取出消息（移动读指针）</span><br></pre></td></tr></table></figure>
+
+<p>因为是读出数据<strong>写入</strong>缓冲区，所以移动writeIndex_</p>
+<p><strong><code>readFd()</code> 里移动 <code>writerIndex_</code>，本质上是「往 Buffer 里写数据」</strong>，而不是 “读数据”。</p>
+<ul>
+<li>从 socket 视角看：这是<strong>读</strong>操作（从网卡读到应用）</li>
+<li>从 Buffer 视角看：这是<strong>写</strong>操作（把数据写入缓冲区）</li>
+</ul>
+<h4 id="写数据完整流程（发送消息）"><a href="#写数据完整流程（发送消息）" class="headerlink" title="写数据完整流程（发送消息）"></a>写数据完整流程（发送消息）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">append() 写入数据体</span><br><span class="line">   ↓</span><br><span class="line">ensureWritableByte() 检查空间</span><br><span class="line">   ↓</span><br><span class="line">不够 → makeSpace() 扩容/整理</span><br><span class="line">   ↓</span><br><span class="line">数据写入可写区</span><br><span class="line">   ↓</span><br><span class="line">writerIndex_ 后移</span><br><span class="line">   ↓</span><br><span class="line">prepend() 插入4字节头（利用 kCheapPrepend 8字节）</span><br><span class="line">   ↓</span><br><span class="line">writeFd() 发送</span><br><span class="line">   ↓</span><br><span class="line">retrieve() 移除已发送数据</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Buffer相关问题"><a href="#Buffer相关问题" class="headerlink" title="Buffer相关问题"></a>Buffer相关问题</h2><h3 id="为什么在头文件中实现这么多函数？"><a href="#为什么在头文件中实现这么多函数？" class="headerlink" title="为什么在头文件中实现这么多函数？"></a>为什么在头文件中实现这么多函数？</h3><p>只有一两行的小函数且调用频繁，可以直接<strong>在头文件实现</strong>编译器会自动内联，消除函数调用开销，性能更高</p>
+<h3 id="prependable-和-kCheapPrepend-关系？"><a href="#prependable-和-kCheapPrepend-关系？" class="headerlink" title="prependable() 和 kCheapPrepend 关系？"></a><code>prependable()</code> 和 <code>kCheapPrepend</code> 关系？</h3><ul>
+<li><p>他俩本质上没啥关系。</p>
+</li>
+<li><p><code>kCheapPrepend</code>：<strong>固定 8 字节</strong>，是预留的协议头空间。</p>
+</li>
+<li><p><code>prependable()</code> &#x3D; <code>readerIndex_</code>，是<strong>0~ 读指针之间的总空闲</strong>，包含 8 字节 + 已读废弃数据（整个 Buffer 里，只有 <code>makeSpace ()</code> 会用它）。</p>
+</li>
+<li><p>&#x3D;&#x3D;kCheapPrepend只有发送消息（<strong>写数据</strong>）时用，读数据时不会用&#x3D;&#x3D;</p>
+<ul>
+<li>什么时候会用到<code>kCheapPrepend</code>：<strong>业务代码里先有数据体，后通过数据体算出数据头</strong>，头部必须放在最前面，但你已经把数据体写进缓冲区了，前面没空间。所以必须提前预留 8 个字节！</li>
+<li><strong>接收时，头部本来就在数据最前面</strong></li>
+</ul>
+</li>
+</ul>
+<h3 id="为什么-Buffer-小、extrabuf-大"><a href="#为什么-Buffer-小、extrabuf-大" class="headerlink" title="为什么 Buffer 小、extrabuf 大?"></a>为什么 Buffer 小、extrabuf 大?</h3><ul>
+<li><code>Buffer</code> 是<strong>每个连接长期持有</strong>，不能太大，否则爆内存</li>
+<li><code>extrabuf</code> 是<strong>栈上临时变量</strong>，函数结束就销毁，所有连接轮流用，不占长期内存，所以越大越好</li>
+</ul>
+<h2 id="源码地址"><a href="#源码地址" class="headerlink" title="源码地址"></a>源码地址</h2><p><strong>Buffer.h：</strong><a target="_blank" rel="noopener" href="https://gitee.com/lpzdinghai/lpzmuduo/blob/master/Buffer.h">https://gitee.com/lpzdinghai/lpzmuduo/blob/master/Buffer.h</a></p>
+<p><strong>Buffer.cc：</strong><a target="_blank" rel="noopener" href="https://gitee.com/lpzdinghai/lpzmuduo/blob/master/Buffer.cc">https://gitee.com/lpzdinghai/lpzmuduo/blob/master/Buffer.cc</a></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/29/day18-Buffer/">http://example.com/2026/04/29/day18-Buffer/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/04/29/day19-TcpConnection/" title="day19-TcpConnection"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">day19-TcpConnection</div></div><div class="info-2"><div class="info-item-1">TcpConnection是muduo 网络库核心的 TCP 连接类，封装了一个完整的 TCP 客户端 - 服务端连接，是网络通信中处理数据读写、连接状态、事件回调的核心组件，我会逐行、分模块给你讲透。 核心定位 对应一个已建立的 TCP socket 连接，生命周期由智能指针管理 运行在 subLoop（IO 线程） 中，不与主线程耦合 封装 socket、channel、缓冲区，对外提供简洁的连接操作接口 处理读、写、关闭、错误四种 IO 事件  TcpConnection.h123456789101112131415#pragma once#include &quot;Buffer.h&quot;#include &quot;InetAddress.h&quot;#include &quot;Callbacks.h&quot;#include &quot;Timestamp.h&quot;#include &quot;noncopyable.h&quot;#include &lt;string&gt;#include &lt;atomic&gt;#include &lt;m...</div></div></div></a><a class="pagination-related" href="/2026/04/29/day17-TcpServer/" title="day17-TcpServer"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">day17-TcpServer</div></div><div class="info-2"><div class="info-item-1">TcpServer是用户使用 muduo 的唯一入口，负责启动服务器、接收新连接、分配 IO 线程、管理所有客户端连接。所有底层细节全部被 TcpServer 封装隐藏，用户只操作 TcpServer Callbacks.h1234567891011121314151617#pragma once#include &lt;memory&gt;#include &lt;functional&gt;class Timestamp;class Buffer;class TcpConnection;using TcpConnectionPtr = std::shared_ptr&lt;TcpConnection&gt;;using ConnectionCallback = std::function&lt;void(const TcpConnectionPtr&amp;)&gt;;using CloseCallback = std::function&lt;void(const TcpConnectionPtr&amp;)&gt;;using WriteCompleteCallback ...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Buffer-h"><span class="toc-number">1.</span> <span class="toc-text">Buffer.h</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%A7%81%E6%9C%89%E6%88%90%E5%91%98%E5%8F%98%E9%87%8F"><span class="toc-number">1.1.</span> <span class="toc-text">私有成员变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%85%E9%83%A8%E5%87%BD%E6%95%B0"><span class="toc-number">1.2.</span> <span class="toc-text">内部函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%AE%9E%E7%8E%B0%E5%B8%B8%E9%87%8F%E5%92%8C%E9%9D%9E%E5%B8%B8%E9%87%8F%E4%B8%A4%E4%B8%AA%E7%89%88%E6%9C%AC%EF%BC%9F"><span class="toc-number">1.2.1.</span> <span class="toc-text">为什么要实现常量和非常量两个版本？</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B1%E6%9C%89%E5%87%BD%E6%95%B0"><span class="toc-number">1.3.</span> <span class="toc-text">共有函数</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Buffer-cc"><span class="toc-number">2.</span> <span class="toc-text">Buffer.cc</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%89%A9%E5%AE%B9%E9%80%BB%E8%BE%91%E8%AE%BE%E8%AE%A1%E4%BC%98%E7%82%B9"><span class="toc-number">2.1.</span> <span class="toc-text">扩容逻辑设计优点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#iovec%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F"><span class="toc-number">2.2.</span> <span class="toc-text">iovec是什么？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#readFd-%E9%80%BB%E8%BE%91"><span class="toc-number">2.3.</span> <span class="toc-text">readFd()逻辑</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E6%A0%88%E4%B8%8A%E4%B8%B4%E6%97%B6%E7%BC%93%E5%86%B2%E5%8C%BA%EF%BC%9AextraBuf-65536"><span class="toc-number">2.3.1.</span> <span class="toc-text">1. 栈上临时缓冲区：extraBuf[65536]</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-iovec-vec-2-%EF%BC%9A%E4%B8%A4%E5%9D%97%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F"><span class="toc-number">2.3.2.</span> <span class="toc-text">2. iovec vec[2]：两块内存区域</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-%E7%AC%AC%E4%B8%80%E5%9D%97%EF%BC%9ABuffer-%E5%86%85%E9%83%A8%E5%8F%AF%E5%86%99%E5%8C%BA"><span class="toc-number">2.3.3.</span> <span class="toc-text">3. 第一块：Buffer 内部可写区</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-%E7%AC%AC%E4%BA%8C%E5%9D%97%EF%BC%9A%E6%A0%88%E4%B8%8A%E4%B8%B4%E6%97%B6%E5%8C%BA"><span class="toc-number">2.3.4.</span> <span class="toc-text">4. 第二块：栈上临时区</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-%E5%86%B3%E5%AE%9A%E7%94%A8%E5%87%A0%E5%9D%97%E5%86%85%E5%AD%98%E8%AF%BB"><span class="toc-number">2.3.5.</span> <span class="toc-text">5. 决定用几块内存读</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#6-%E6%A0%B8%E5%BF%83%E8%B0%83%E7%94%A8%EF%BC%9Areadv"><span class="toc-number">2.3.6.</span> <span class="toc-text">6. 核心调用：readv</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Buffer%E8%AE%BE%E8%AE%A1%E9%80%BB%E8%BE%91"><span class="toc-number">2.4.</span> <span class="toc-text">Buffer设计逻辑</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%AF%BB%E6%95%B0%E6%8D%AE%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B%EF%BC%88%E6%8E%A5%E6%94%B6%E6%B6%88%E6%81%AF%EF%BC%89"><span class="toc-number">2.4.1.</span> <span class="toc-text">读数据完整流程（接收消息）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%86%99%E6%95%B0%E6%8D%AE%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B%EF%BC%88%E5%8F%91%E9%80%81%E6%B6%88%E6%81%AF%EF%BC%89"><span class="toc-number">2.4.2.</span> <span class="toc-text">写数据完整流程（发送消息）</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Buffer%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98"><span class="toc-number">3.</span> <span class="toc-text">Buffer相关问题</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E5%9C%A8%E5%A4%B4%E6%96%87%E4%BB%B6%E4%B8%AD%E5%AE%9E%E7%8E%B0%E8%BF%99%E4%B9%88%E5%A4%9A%E5%87%BD%E6%95%B0%EF%BC%9F"><span class="toc-number">3.1.</span> <span class="toc-text">为什么在头文件中实现这么多函数？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#prependable-%E5%92%8C-kCheapPrepend-%E5%85%B3%E7%B3%BB%EF%BC%9F"><span class="toc-number">3.2.</span> <span class="toc-text">prependable() 和 kCheapPrepend 关系？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88-Buffer-%E5%B0%8F%E3%80%81extrabuf-%E5%A4%A7"><span class="toc-number">3.3.</span> <span class="toc-text">为什么 Buffer 小、extrabuf 大?</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E5%9C%B0%E5%9D%80"><span class="toc-number">4.</span> <span class="toc-text">源码地址</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/" title="muduo结构图">muduo结构图</a><time datetime="2026-04-29T13:04:52.000Z" title="Created 2026-04-29 21:04:52">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/%E5%8E%9F%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90/" title="原代码解析">原代码解析</a><time datetime="2026-04-29T13:04:35.000Z" title="Created 2026-04-29 21:04:35">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day21-%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC%E5%92%8C%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81/" title="day21-编译安装脚本和测试代码">day21-编译安装脚本和测试代码</a><time datetime="2026-04-29T13:03:54.000Z" title="Created 2026-04-29 21:03:54">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day20-TcpServer-TcpConnection/" title="day20-TcpServer+TcpConnection">day20-TcpServer+TcpConnection</a><time datetime="2026-04-29T13:03:34.000Z" title="Created 2026-04-29 21:03:34">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day19-TcpConnection/" title="day19-TcpConnection">day19-TcpConnection</a><time datetime="2026-04-29T13:03:21.000Z" title="Created 2026-04-29 21:03:21">2026-04-29</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>day20-TcpServer+TcpConnection | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="TcpServer + TcpConnection 完整联动流程图12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364【TcpServer 启动】    ↓1. TcpServer 构造    ├─ 创建 Acce">
+<meta property="og:type" content="article">
+<meta property="og:title" content="day20-TcpServer+TcpConnection">
+<meta property="og:url" content="http://example.com/2026/04/29/day20-TcpServer-TcpConnection/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="TcpServer + TcpConnection 完整联动流程图12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364【TcpServer 启动】    ↓1. TcpServer 构造    ├─ 创建 Acce">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-29T13:03:34.000Z">
+<meta property="article:modified_time" content="2026-04-29T13:17:01.822Z">
+<meta property="article:author" content="dinghai">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "day20-TcpServer+TcpConnection",
+  "url": "http://example.com/2026/04/29/day20-TcpServer-TcpConnection/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-29T13:03:34.000Z",
+  "dateModified": "2026-04-29T13:17:01.822Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/29/day20-TcpServer-TcpConnection/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'day20-TcpServer+TcpConnection',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">day20-TcpServer+TcpConnection</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">day20-TcpServer+TcpConnection</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-29T13:03:34.000Z" title="Created 2026-04-29 21:03:34">2026-04-29</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-29T13:17:01.822Z" title="Updated 2026-04-29 21:17:01">2026-04-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/muduo%E9%87%8D%E6%9E%84/">muduo重构</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><h2 id="TcpServer-TcpConnection-完整联动流程图"><a href="#TcpServer-TcpConnection-完整联动流程图" class="headerlink" title="TcpServer + TcpConnection 完整联动流程图"></a>TcpServer + TcpConnection 完整联动流程图</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line">【TcpServer 启动】</span><br><span class="line">    ↓</span><br><span class="line">1. TcpServer 构造</span><br><span class="line">    ├─ 创建 Acceptor(监听socket)</span><br><span class="line">    └─ 创建 EventLoopThreadPool 线程池</span><br><span class="line">    ↓</span><br><span class="line">2. TcpServer::start()</span><br><span class="line">    ├─ 启动IO线程池</span><br><span class="line">    └─ Acceptor::listen() 开启监听 + 绑定accept回调</span><br><span class="line">    ↓</span><br><span class="line"></span><br><span class="line">【新连接到达】</span><br><span class="line">3. 客户端连接 → 监听fd触发读事件</span><br><span class="line">    ↓</span><br><span class="line">4. Acceptor::handleAccept()</span><br><span class="line">    ├─ accept 拿到 客户端connfd</span><br><span class="line">    └─ 回调 TcpServer::newConnection</span><br><span class="line">    ↓</span><br><span class="line">5. TcpServer::newConnection()</span><br><span class="line">    ├─ 1. 分配ioLoop(轮询)</span><br><span class="line">    ├─ 2. new 一个 TcpConnectionPtr(shared_ptr)</span><br><span class="line">    ├─ 3. 存入 connections_ 容器管理</span><br><span class="line">    └─ 4. conn-&gt;connectEstablish(conn) 唤醒连接</span><br><span class="line">    ↓</span><br><span class="line"></span><br><span class="line">【TcpConnection 连接初始化】</span><br><span class="line">6. TcpConnection::connectEstablish()</span><br><span class="line">    ├─ 修改状态为 kConnected</span><br><span class="line">    ├─ channel_-&gt;tie(self)  // weak_ptr 保生命周期</span><br><span class="line">    ├─ channel 绑定 读/写/关闭/错误回调 【绑定 shared_ptr self】</span><br><span class="line">    ├─ channel-&gt;enableReading() 注册读事件</span><br><span class="line">    └─ 执行 connectionCallback_(self)  // 连接上线回调</span><br><span class="line">    ↓</span><br><span class="line"></span><br><span class="line">【正常数据收发】</span><br><span class="line">7. 客户端发数据 → connfd 读事件就绪</span><br><span class="line">    ↓</span><br><span class="line">8. Channel::handleEvent() → 触发 handleRead</span><br><span class="line">    ↓</span><br><span class="line">9. TcpConnection::handleRead()</span><br><span class="line">    ├─ Buffer 读取socket数据</span><br><span class="line">    └─ 执行 messageCallback_(self, buffer, time)  // 业务消息回调</span><br><span class="line">    ↓</span><br><span class="line"></span><br><span class="line">【连接关闭流程】</span><br><span class="line">10. 客户端断开 / 异常 → 触发关闭事件</span><br><span class="line">    ↓</span><br><span class="line">11. TcpConnection::handleClose()</span><br><span class="line">    ├─ 修改状态</span><br><span class="line">    ├─ 关闭channel事件监听</span><br><span class="line">    └─ 回调 TcpServer::removeConnection</span><br><span class="line">    ↓</span><br><span class="line">12. TcpServer::removeConnection()</span><br><span class="line">    └─ 扔到loop：removeConnectionInLoop</span><br><span class="line">    ↓</span><br><span class="line">13. TcpServer::removeConnectionInLoop()</span><br><span class="line">    ├─ connections_.erase(连接)  // 解除server强引用</span><br><span class="line">    └─ ioLoop-&gt;queueInLoop(connectDestroy)</span><br><span class="line">    ↓</span><br><span class="line">14. TcpConnection::connectDestroy()</span><br><span class="line">    ├─ 下线回调</span><br><span class="line">    └─ channel 彻底移除poller</span><br><span class="line">    ↓</span><br><span class="line">15. 所有shared_ptr引用释放 → TcpConnection 析构</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="层级从属关系"><a href="#层级从属关系" class="headerlink" title="层级从属关系"></a>层级从属关系</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">TcpServer</span><br><span class="line">├─ Acceptor  ：监听、接收新连接</span><br><span class="line">├─ EventLoopThreadPool ：IO线程池</span><br><span class="line">└─ std::map ：管理所有 TcpConnection</span><br><span class="line"></span><br><span class="line">TcpConnection(单条客户端连接)</span><br><span class="line">├─ Socket ：持有connfd</span><br><span class="line">├─ Channel ：封装fd+事件+回调</span><br><span class="line">├─ Buffer ：读写缓冲区</span><br><span class="line">└─ 三层回调：</span><br><span class="line">   ├─ connectionCallback  连接上下线</span><br><span class="line">   ├─ messageCallback     收到消息</span><br><span class="line">   └─ writeCallback      发送完成</span><br></pre></td></tr></table></figure>
+
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/29/day20-TcpServer-TcpConnection/">http://example.com/2026/04/29/day20-TcpServer-TcpConnection/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/04/29/day21-%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC%E5%92%8C%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81/" title="day21-编译安装脚本和测试代码"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">day21-编译安装脚本和测试代码</div></div><div class="info-2"><div class="info-item-1">autobuild.sh这是一个自动编译 + 自动安装muduo的一键部署脚本 12345678910111213141516171819202122232425262728293031#!/bin/bashset -e# 如果没有build目录，创建该目录if [ ! -d `pwd`/build ]; then    mkdir `pwd`/buildfirm -rf `pwd`/build/*cd `pwd`/build &amp;&amp;    cmake .. &amp;&amp;    make# 回到项目根目录cd ..# 把头文件拷贝到 /usr/include/mymuduo so库拷贝到 /usr/lib    PATHif [ ! -d /usr/include/lpzmuduo ]; then    mkdir /usr/include/lpzmuduofifor header in `ls *.h`do    cp $header /usr/include/lpzmuduodonecp `pwd`/lib/liblpzmuduo.so /usr/lib...</div></div></div></a><a class="pagination-related" href="/2026/04/29/day19-TcpConnection/" title="day19-TcpConnection"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">day19-TcpConnection</div></div><div class="info-2"><div class="info-item-1">TcpConnection是muduo 网络库核心的 TCP 连接类，封装了一个完整的 TCP 客户端 - 服务端连接，是网络通信中处理数据读写、连接状态、事件回调的核心组件，我会逐行、分模块给你讲透。 核心定位 对应一个已建立的 TCP socket 连接，生命周期由智能指针管理 运行在 subLoop（IO 线程） 中，不与主线程耦合 封装 socket、channel、缓冲区，对外提供简洁的连接操作接口 处理读、写、关闭、错误四种 IO 事件  TcpConnection.h123456789101112131415#pragma once#include &quot;Buffer.h&quot;#include &quot;InetAddress.h&quot;#include &quot;Callbacks.h&quot;#include &quot;Timestamp.h&quot;#include &quot;noncopyable.h&quot;#include &lt;string&gt;#include &lt;atomic&gt;#include &lt;m...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#TcpServer-TcpConnection-%E5%AE%8C%E6%95%B4%E8%81%94%E5%8A%A8%E6%B5%81%E7%A8%8B%E5%9B%BE"><span class="toc-number">1.</span> <span class="toc-text">TcpServer + TcpConnection 完整联动流程图</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%82%E7%BA%A7%E4%BB%8E%E5%B1%9E%E5%85%B3%E7%B3%BB"><span class="toc-number">2.</span> <span class="toc-text">层级从属关系</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/" title="muduo结构图">muduo结构图</a><time datetime="2026-04-29T13:04:52.000Z" title="Created 2026-04-29 21:04:52">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/%E5%8E%9F%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90/" title="原代码解析">原代码解析</a><time datetime="2026-04-29T13:04:35.000Z" title="Created 2026-04-29 21:04:35">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day21-%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC%E5%92%8C%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81/" title="day21-编译安装脚本和测试代码">day21-编译安装脚本和测试代码</a><time datetime="2026-04-29T13:03:54.000Z" title="Created 2026-04-29 21:03:54">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day20-TcpServer-TcpConnection/" title="day20-TcpServer+TcpConnection">day20-TcpServer+TcpConnection</a><time datetime="2026-04-29T13:03:34.000Z" title="Created 2026-04-29 21:03:34">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day19-TcpConnection/" title="day19-TcpConnection">day19-TcpConnection</a><time datetime="2026-04-29T13:03:21.000Z" title="Created 2026-04-29 21:03:21">2026-04-29</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

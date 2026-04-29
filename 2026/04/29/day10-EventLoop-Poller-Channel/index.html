@@ -1,0 +1,183 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>day10-EventLoop+Poller+Channel | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="一、主循环驱动流程（核心大动脉）1234567891011loop()  ↓while (!quit_)  ↓poller_-&gt;poll()   &#x2F;&#x2F; 阻塞等待事件  ↓activeChannels 被填充  ↓遍历 channel-&gt;handleEvent()  &#x2F;&#x2F; IO 关键路径  ↓doPendingFunctors()          &#x2F;&#x2F; 任务队列   二、Channel">
+<meta property="og:type" content="article">
+<meta property="og:title" content="day10-EventLoop+Poller+Channel">
+<meta property="og:url" content="http://example.com/2026/04/29/day10-EventLoop-Poller-Channel/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="一、主循环驱动流程（核心大动脉）1234567891011loop()  ↓while (!quit_)  ↓poller_-&gt;poll()   &#x2F;&#x2F; 阻塞等待事件  ↓activeChannels 被填充  ↓遍历 channel-&gt;handleEvent()  &#x2F;&#x2F; IO 关键路径  ↓doPendingFunctors()          &#x2F;&#x2F; 任务队列   二、Channel">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-29T13:00:27.000Z">
+<meta property="article:modified_time" content="2026-04-29T13:14:56.875Z">
+<meta property="article:author" content="dinghai">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "day10-EventLoop+Poller+Channel",
+  "url": "http://example.com/2026/04/29/day10-EventLoop-Poller-Channel/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-29T13:00:27.000Z",
+  "dateModified": "2026-04-29T13:14:56.875Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/29/day10-EventLoop-Poller-Channel/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'day10-EventLoop+Poller+Channel',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">day10-EventLoop+Poller+Channel</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">day10-EventLoop+Poller+Channel</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-29T13:00:27.000Z" title="Created 2026-04-29 21:00:27">2026-04-29</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-29T13:14:56.875Z" title="Updated 2026-04-29 21:14:56">2026-04-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/muduo%E9%87%8D%E6%9E%84/">muduo重构</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><h1 id="一、主循环驱动流程（核心大动脉）"><a href="#一、主循环驱动流程（核心大动脉）" class="headerlink" title="一、主循环驱动流程（核心大动脉）"></a>一、主循环驱动流程（核心大动脉）</h1><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">loop()</span><br><span class="line">  ↓</span><br><span class="line">while (!quit_)</span><br><span class="line">  ↓</span><br><span class="line">poller_-&gt;poll()   // 阻塞等待事件</span><br><span class="line">  ↓</span><br><span class="line">activeChannels 被填充</span><br><span class="line">  ↓</span><br><span class="line">遍历 channel-&gt;handleEvent()  // IO 关键路径</span><br><span class="line">  ↓</span><br><span class="line">doPendingFunctors()          // 任务队列</span><br></pre></td></tr></table></figure>
+
+
+<h1 id="二、Channel-注册-更新-删除-流程"><a href="#二、Channel-注册-更新-删除-流程" class="headerlink" title="二、Channel 注册 &#x2F; 更新 &#x2F; 删除 流程"></a>二、Channel 注册 &#x2F; 更新 &#x2F; 删除 流程</h1><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">Channel::enableReading()</span><br><span class="line">  ↓</span><br><span class="line">Channel::update()</span><br><span class="line">  ↓</span><br><span class="line">EventLoop::updateChannel()</span><br><span class="line">  ↓</span><br><span class="line">Poller::updateChannel()</span><br><span class="line">  ↓</span><br><span class="line">epoll_ctl()</span><br></pre></td></tr></table></figure>
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">EventLoop::removeChannel()</span><br><span class="line">  ↓</span><br><span class="line">Poller::removeChannel()</span><br><span class="line">  ↓</span><br><span class="line">epoll_ctl_del()</span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="三、任务队列-完整联动（跨线程）"><a href="#三、任务队列-完整联动（跨线程）" class="headerlink" title="三、任务队列 完整联动（跨线程）"></a>三、任务队列 完整联动（跨线程）</h1><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">runInLoop(cb)</span><br><span class="line">  ↓</span><br><span class="line">本线程 → cb()</span><br><span class="line">跨线程 → queueInLoop(cb)</span><br><span class="line">            ↓</span><br><span class="line">        加锁、加入 pendingFunctors_</span><br><span class="line">            ↓</span><br><span class="line">        if (!isInLoopThread() || callingPendingFunctors_)</span><br><span class="line">            ↓</span><br><span class="line">        wakeup()</span><br><span class="line">            ↓</span><br><span class="line">loop() 被唤醒</span><br><span class="line">            ↓</span><br><span class="line">doPendingFunctors()</span><br><span class="line">            ↓</span><br><span class="line">callingPendingFunctors_ = true</span><br><span class="line">            ↓</span><br><span class="line">swap 交换队列（解锁）</span><br><span class="line">            ↓</span><br><span class="line">执行所有 functor</span><br><span class="line">            ↓</span><br><span class="line">callingPendingFunctors_ = false</span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="四、退出流程-联动"><a href="#四、退出流程-联动" class="headerlink" title="四、退出流程 联动"></a>四、退出流程 联动</h1><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">quit()</span><br><span class="line">  ↓</span><br><span class="line">quit_ = true</span><br><span class="line">  ↓</span><br><span class="line">if (!isInLoopThread()) wakeup()</span><br><span class="line">  ↓</span><br><span class="line">loop() 被唤醒</span><br><span class="line">  ↓</span><br><span class="line">while (!quit_) 退出</span><br><span class="line">  ↓</span><br><span class="line">loop 结束</span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="五、状态判断函数-作用点"><a href="#五、状态判断函数-作用点" class="headerlink" title="五、状态判断函数 作用点"></a>五、状态判断函数 作用点</h1><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">hasChannel(channel)</span><br><span class="line">  ↓</span><br><span class="line">Poller::hasChannel()</span><br><span class="line">  ↓</span><br><span class="line">判断 channel 是否在 epoll 监听中</span><br></pre></td></tr></table></figure>
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">isInLoopThread()</span><br><span class="line">  ↓</span><br><span class="line">runInLoop / queueInLoop / quit 全都用</span><br><span class="line">  ↓</span><br><span class="line">决定是否直接执行 or 唤醒</span><br></pre></td></tr></table></figure>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/29/day10-EventLoop-Poller-Channel/">http://example.com/2026/04/29/day10-EventLoop-Poller-Channel/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/04/29/day11-Thread/" title="day11-Thread"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">day11-Thread</div></div><div class="info-2"><div class="info-item-1">one loop per thread &#x3D; 一个线程，只跑一个 EventLoop muduo 的 Thread 类 &#x3D; 专门用来创建这种 “带 loop 的线程” Thread类是对线程的一个轻量级封装 Thread.h12345678910#pragma once#include &quot;noncopyable.h&quot;#include &lt;atomic&gt;#include &lt;functional&gt;#include &lt;unistd.h&gt; //pid_t#include &lt;memory&gt;#include &lt;thread&gt;#include &lt;string&gt;    12345class Thread : noncopyable&#123;public:    using ThreadFunc = std::function&lt;void()&gt;;&#125;   一个线程对象只能代表一个线程，不能复制  定义线程要执行的函数类型，无参数、无返回值的函数   私有成员变量12345...</div></div></div></a><a class="pagination-related" href="/2026/04/29/day09-EventLoop/" title="day09-EventLoop"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">day09-EventLoop</div></div><div class="info-2"><div class="info-item-1">EventLoop 是 muduo 的核心，所有网络操作、所有事件、所有任务，最终都由 EventLoop 驱动。 1个EventLoop管理1个Poller+多个Channel muduo设计原理：one loop per thread EventLoop负责在单线程内处理两件事：  网络 IO 事件（内核通知的 socket 读写、连接） 用户提交的异步任务（其他线程发来的函数）  EventLoop.h1234567891011121314#pragma once#include &lt;vector&gt;#include &lt;atomic&gt;#include &lt;functional&gt;#include &lt;mutex&gt;#include &lt;memory&gt;#include &quot;noncopyable.h&quot;#include &quot;CurrentThread.h&quot;#include &quot;Timestamp.h&quot;class Channel;class Poller;  头文件依赖。 1234...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">45</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">4</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%B8%BB%E5%BE%AA%E7%8E%AF%E9%A9%B1%E5%8A%A8%E6%B5%81%E7%A8%8B%EF%BC%88%E6%A0%B8%E5%BF%83%E5%A4%A7%E5%8A%A8%E8%84%89%EF%BC%89"><span class="toc-number">1.</span> <span class="toc-text">一、主循环驱动流程（核心大动脉）</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Channel-%E6%B3%A8%E5%86%8C-%E6%9B%B4%E6%96%B0-%E5%88%A0%E9%99%A4-%E6%B5%81%E7%A8%8B"><span class="toc-number">2.</span> <span class="toc-text">二、Channel 注册 &#x2F; 更新 &#x2F; 删除 流程</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97-%E5%AE%8C%E6%95%B4%E8%81%94%E5%8A%A8%EF%BC%88%E8%B7%A8%E7%BA%BF%E7%A8%8B%EF%BC%89"><span class="toc-number">3.</span> <span class="toc-text">三、任务队列 完整联动（跨线程）</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E9%80%80%E5%87%BA%E6%B5%81%E7%A8%8B-%E8%81%94%E5%8A%A8"><span class="toc-number">4.</span> <span class="toc-text">四、退出流程 联动</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E7%8A%B6%E6%80%81%E5%88%A4%E6%96%AD%E5%87%BD%E6%95%B0-%E4%BD%9C%E7%94%A8%E7%82%B9"><span class="toc-number">5.</span> <span class="toc-text">五、状态判断函数 作用点</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/" title="muduo结构图">muduo结构图</a><time datetime="2026-04-29T13:04:52.000Z" title="Created 2026-04-29 21:04:52">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/%E5%8E%9F%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90/" title="原代码解析">原代码解析</a><time datetime="2026-04-29T13:04:35.000Z" title="Created 2026-04-29 21:04:35">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day21-%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC%E5%92%8C%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81/" title="day21-编译安装脚本和测试代码">day21-编译安装脚本和测试代码</a><time datetime="2026-04-29T13:03:54.000Z" title="Created 2026-04-29 21:03:54">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day20-TcpServer-TcpConnection/" title="day20-TcpServer+TcpConnection">day20-TcpServer+TcpConnection</a><time datetime="2026-04-29T13:03:34.000Z" title="Created 2026-04-29 21:03:34">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day19-TcpConnection/" title="day19-TcpConnection">day19-TcpConnection</a><time datetime="2026-04-29T13:03:21.000Z" title="Created 2026-04-29 21:03:21">2026-04-29</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
