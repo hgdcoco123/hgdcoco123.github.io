@@ -1,0 +1,555 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>6.IO多路复用-epoll | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="epoll一、核心背景在高并发网络编程中（比如百万连接的服务器），传统的 select&#x2F;poll 会遇到三个致命问题：  性能瓶颈：每次调用都要遍历所有监听的文件描述符（FD），FD 越多越慢（O (n)）； 数量限制：select 最多监听 1024 个 FD（FD_SETSIZE 限制）； 数据拷贝：每次调用都要把用户态的 FD 集合拷贝到内核态，开销极大。  epoll 就是为解决这些问题而">
+<meta property="og:type" content="article">
+<meta property="og:title" content="6.IO多路复用-epoll">
+<meta property="og:url" content="http://example.com/2026/04/29/6-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-epoll/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="epoll一、核心背景在高并发网络编程中（比如百万连接的服务器），传统的 select&#x2F;poll 会遇到三个致命问题：  性能瓶颈：每次调用都要遍历所有监听的文件描述符（FD），FD 越多越慢（O (n)）； 数量限制：select 最多监听 1024 个 FD（FD_SETSIZE 限制）； 数据拷贝：每次调用都要把用户态的 FD 集合拷贝到内核态，开销极大。  epoll 就是为解决这些问题而">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-29T02:28:19.000Z">
+<meta property="article:modified_time" content="2026-04-29T02:42:58.786Z">
+<meta property="article:author" content="dinghai">
+<meta property="article:tag" content="IO多路复用">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "6.IO多路复用-epoll",
+  "url": "http://example.com/2026/04/29/6-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-epoll/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-29T02:28:19.000Z",
+  "dateModified": "2026-04-29T02:42:58.786Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/29/6-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-epoll/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '6.IO多路复用-epoll',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">18</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">6.IO多路复用-epoll</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">6.IO多路复用-epoll</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-29T02:28:19.000Z" title="Created 2026-04-29 10:28:19">2026-04-29</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-29T02:42:58.786Z" title="Updated 2026-04-29 10:42:58">2026-04-29</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/">网络编程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><h1 id="epoll"><a href="#epoll" class="headerlink" title="epoll"></a>epoll</h1><h2 id="一、核心背景"><a href="#一、核心背景" class="headerlink" title="一、核心背景"></a>一、核心背景</h2><p>在高并发网络编程中（比如百万连接的服务器），传统的 <code>select/poll</code> 会遇到三个致命问题：</p>
+<ul>
+<li><strong>性能瓶颈</strong>：每次调用都要遍历所有监听的文件描述符（FD），FD 越多越慢（O (n)）；</li>
+<li><strong>数量限制</strong>：select 最多监听 1024 个 FD（FD_SETSIZE 限制）；</li>
+<li><strong>数据拷贝</strong>：每次调用都要把用户态的 FD 集合拷贝到内核态，开销极大。</li>
+</ul>
+<p>epoll 就是为解决这些问题而生的 —— 它是 Linux 内核专为<strong>高并发 I&#x2F;O 场景</strong>设计的 “事件通知管家”，核心是「<strong>只关注有变化的 FD</strong>」，让服务器能高效处理数万甚至数百万的并发连接。</p>
+<h3 id="通俗类比"><a href="#通俗类比" class="headerlink" title="通俗类比"></a>通俗类比</h3><ul>
+<li>select&#x2F;poll：像一个老师，每天挨个检查全班 1000 个学生的作业（不管有没有写完），效率极低；</li>
+<li>epoll：像一个班长，只有学生写完作业（FD 就绪）才主动告诉老师，老师只处理这些 “写完作业的学生”，效率直接拉满。</li>
+</ul>
+<h2 id="二、epoll-核心底层原理"><a href="#二、epoll-核心底层原理" class="headerlink" title="二、epoll 核心底层原理"></a>二、epoll 核心底层原理</h2><p>epoll 的高效，本质是内核用了<strong>三个关键设计</strong>，我们逐一拆解：</p>
+<h3 id="1-核心数据结构：红黑树-就绪链表"><a href="#1-核心数据结构：红黑树-就绪链表" class="headerlink" title="1. 核心数据结构：红黑树 + 就绪链表"></a>1. 核心数据结构：红黑树 + 就绪链表</h3><p>内核为每个 epoll 实例维护两个核心结构：</p>
+<table>
+<thead>
+<tr>
+<th>结构</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>红黑树</td>
+<td>存储所有通过 <code>epoll_ctl</code> 注册的 FD（待检测集合），增删改查效率 O (logn)</td>
+</tr>
+<tr>
+<td>就绪链表</td>
+<td>仅存储 “发生事件” 的 FD（比如有数据可读、可写），<code>epoll_wait</code> 只返回这个链表</td>
+</tr>
+</tbody></table>
+<p><strong>内核工作流程</strong>：</p>
+<ol>
+<li>你通过 <code>epoll_ctl</code> 把要监听的 FD（比如监听套接字、客户端连接）添加到红黑树；</li>
+<li>内核会给每个 FD 注册一个<strong>回调函数</strong>：当 FD 就绪（比如有数据到达），就自动把这个 FD 从红黑树移到就绪链表；</li>
+<li>你调用 <code>epoll_wait</code> 时，内核只需要把就绪链表的 FD 拷贝到用户态，无需遍历所有 FD（时间复杂度 O (1)）。</li>
+</ol>
+<h3 id="2-内存映射（mmap）：减少内核-用户态拷贝"><a href="#2-内存映射（mmap）：减少内核-用户态拷贝" class="headerlink" title="2. 内存映射（mmap）：减少内核 &#x2F; 用户态拷贝"></a>2. 内存映射（mmap）：减少内核 &#x2F; 用户态拷贝</h3><p>epoll 用 <code>mmap</code> 把内核态的就绪链表和用户态的缓冲区映射到同一块内存，避免了传统 <code>select/poll</code> 中 “每次调用都拷贝整个 FD 集合” 的开销 —— 数据只需要拷贝一次，甚至无需拷贝。</p>
+<h3 id="3-解耦设计：把-“注册-FD”-和-“等待事件”-分开"><a href="#3-解耦设计：把-“注册-FD”-和-“等待事件”-分开" class="headerlink" title="3. 解耦设计：把 “注册 FD” 和 “等待事件” 分开"></a>3. 解耦设计：把 “注册 FD” 和 “等待事件” 分开</h3><p>select&#x2F;poll 把 “添加要检测的 FD” 和 “阻塞等待事件” 绑在一起，每次调用都要重复做这两件事；</p>
+<p>epoll 把这两步拆成 <code>epoll_ctl</code>（注册 &#x2F; 修改 &#x2F; 删除 FD）和 <code>epoll_wait</code>（等待事件），大部分场景下 FD 是固定的，只需注册一次，后续只调用 <code>epoll_wait</code> 即可，大幅减少开销。</p>
+<h2 id="三、epoll-核心-API-深度解析"><a href="#三、epoll-核心-API-深度解析" class="headerlink" title="三、epoll 核心 API 深度解析"></a>三、epoll 核心 API 深度解析</h2><p>使用epoll需包含头文件：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;sys/epoll.h&gt;</span></span></span><br></pre></td></tr></table></figure>
+
+<p>epoll 只有三个核心函数，我们逐个拆解：</p>
+<h3 id="1-epoll-create-epoll-create1（创建-epoll-实例）"><a href="#1-epoll-create-epoll-create1（创建-epoll-实例）" class="headerlink" title="1. epoll_create &#x2F;epoll_create1（创建 epoll 实例）"></a>1. epoll_create &#x2F;epoll_create1（创建 epoll 实例）</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 旧版：size 参数在 2.6.8 后废弃，只需传 &gt;0 的数即可</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">epoll_create</span><span class="params">(<span class="type">int</span> size)</span>;</span><br><span class="line"><span class="comment">// 新版：推荐用这个，flags 填 0 或 EPOLL_CLOEXEC（进程退出自动关闭 epoll_fd）</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">epoll_create1</span><span class="params">(<span class="type">int</span> flags)</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>返回值</strong>：成功返回 epoll 实例的文件描述符（epoll_fd），失败返回 -1；</li>
+<li><strong>关键注意</strong>：epoll_fd 本身也是一个 FD，使用完必须 <code>close(epoll_fd)</code>，否则会内存泄漏；</li>
+<li><strong>通俗理解</strong>：创建一个 “事件管家”，后续所有 FD 的监听都由这个管家负责。</li>
+</ul>
+<h4 id="epoll-create1-函数"><a href="#epoll-create1-函数" class="headerlink" title="epoll_create1()函数"></a>epoll_create1()函数</h4><h5 id="1-参数：int-flags（标志位）"><a href="#1-参数：int-flags（标志位）" class="headerlink" title="1. 参数：int flags（标志位）"></a>1. 参数：<code>int flags</code>（标志位）</h5><p>这是 <code>epoll_create1()</code> 相比旧版 <code>epoll_create()</code> 的核心改进 —— 通过标志位控制 epoll 实例的行为，目前支持的标志只有一个：</p>
+<table>
+<thead>
+<tr>
+<th>标志值</th>
+<th>含义</th>
+<th>使用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>0</code></td>
+<td>默认值：创建普通的 epoll 实例，无特殊行为</td>
+<td>绝大多数常规场景</td>
+</tr>
+<tr>
+<td><code>EPOLL_CLOEXEC</code></td>
+<td>创建 epoll 实例时，为其设置 <code>FD_CLOEXEC</code> 标志（执行 <code>exec</code> 时自动关闭）</td>
+<td>多进程 &#x2F; 程序替换（<code>exec</code>）场景</td>
+</tr>
+</tbody></table>
+<p><strong>关键解释：<code>EPOLL_CLOEXEC</code> 的作用</strong></p>
+<ul>
+<li>背景：Linux 中，进程打开的 FD 会被子进程继承，若进程调用 <code>exec</code>（替换程序），默认情况下 FD 不会关闭；</li>
+<li>问题：如果不关闭 epoll 实例的 FD，可能导致资源泄露（比如子进程 &#x2F; 新程序意外持有该 FD）；</li>
+<li>解决：设置 <code>EPOLL_CLOEXEC</code> 后，当进程调用 <code>exec</code> 时，内核会自动关闭这个 epoll 实例的 FD，避免资源泄露。</li>
+</ul>
+<h5 id="2-返回值"><a href="#2-返回值" class="headerlink" title="2. 返回值"></a>2. 返回值</h5><table>
+<thead>
+<tr>
+<th>返回值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>-1</code></td>
+<td>失败：会设置 <code>errno</code> 提示失败原因（如 <code>ENOMEM</code> 内存不足、<code>EINVAL</code> 标志无效）</td>
+</tr>
+<tr>
+<td><code>&gt;=0</code></td>
+<td>成功：返回一个<strong>有效的文件描述符（epfd）</strong>，代表创建的 epoll 实例</td>
+</tr>
+</tbody></table>
+<p><strong>常见失败原因及解决</strong></p>
+<ul>
+<li><code>errno = ENOMEM</code>：系统内存不足，无法创建 epoll 实例 → 检查系统内存，或减少其他进程占用；</li>
+<li><code>errno = EINVAL</code>：传入的 <code>flags</code> 无效（比如填了非 <code>0</code>&#x2F;<code>EPOLL_CLOEXEC</code> 的值）→ 确认标志位合法；</li>
+<li><code>errno = EMFILE</code>：进程打开的 FD 数达到上限 → 执行 <code>ulimit -n 65535</code> 扩大 FD 上限。</li>
+</ul>
+<h3 id="2-epoll-ctl（管理监听的-FD）"><a href="#2-epoll-ctl（管理监听的-FD）" class="headerlink" title="2. epoll_ctl（管理监听的 FD）"></a>2. epoll_ctl（管理监听的 FD）</h3><p>这是 epoll 最核心的函数，负责给 “管家” 添加 &#x2F; 修改 &#x2F; 删除要监听的 FD。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">epoll_ctl</span><span class="params">(<span class="type">int</span> epfd, <span class="type">int</span> op, <span class="type">int</span> fd, <span class="keyword">struct</span> epoll_event *event)</span>;</span><br></pre></td></tr></table></figure>
+
+<h4 id="参数拆解"><a href="#参数拆解" class="headerlink" title="参数拆解"></a>参数拆解</h4><table>
+<thead>
+<tr>
+<th>参数</th>
+<th>含义 &amp; 注意事项</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>epfd</td>
+<td>epoll_create 的返回值</td>
+</tr>
+<tr>
+<td>op</td>
+<td>操作类型：<br>✅ EPOLL_CTL_ADD：添加 FD 到红黑树<br>✅ EPOLL_CTL_MOD：修改 FD 的监听事件<br>✅ EPOLL_CTL_DEL：从红黑树删除 FD</td>
+</tr>
+<tr>
+<td>fd</td>
+<td>要监听的文件描述符（比如监听套接字 lfd、客户端连接 cfd）</td>
+</tr>
+<tr>
+<td>event</td>
+<td>核心结构体，指定 “监听什么事件”+“关联什么数据”</td>
+</tr>
+</tbody></table>
+<h4 id="核心返回值含义"><a href="#核心返回值含义" class="headerlink" title="核心返回值含义"></a>核心返回值含义</h4><table>
+<thead>
+<tr>
+<th align="left">返回值</th>
+<th align="left">含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>0</strong></td>
+<td align="left">操作成功（添加 &#x2F; 修改 &#x2F; 删除监听事件完成）</td>
+</tr>
+<tr>
+<td align="left"><strong>-1</strong></td>
+<td align="left">操作失败，具体错误原因通过 <code>errno</code> 获取</td>
+</tr>
+</tbody></table>
+<h4 id="核心结构体：struct-epoll-event"><a href="#核心结构体：struct-epoll-event" class="headerlink" title="核心结构体：struct epoll_event"></a>核心结构体：struct epoll_event</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 联合体：多个变量共用一块内存，通常只用 fd 成员</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">union</span> <span class="title">epoll_data</span> &#123;</span></span><br><span class="line">    <span class="type">void</span>    *ptr;  <span class="comment">// 自定义指针（比如绑定 FD 对应的业务数据）</span></span><br><span class="line">    <span class="type">int</span>      fd;   <span class="comment">// 要监听的 FD（最常用）</span></span><br><span class="line">    <span class="type">uint32_t</span> u32;</span><br><span class="line">    <span class="type">uint64_t</span> u64;</span><br><span class="line">&#125; <span class="type">epoll_data_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> &#123;</span></span><br><span class="line">    <span class="type">uint32_t</span>     events;  <span class="comment">// 要监听的事件（比如 EPOLLIN、EPOLLOUT）</span></span><br><span class="line">    <span class="type">epoll_data_t</span> data;    <span class="comment">// 关联的数据（通常存 fd）</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h4 id="常用-events-标志（必记）"><a href="#常用-events-标志（必记）" class="headerlink" title="常用 events 标志（必记）"></a>常用 events 标志（必记）</h4><table>
+<thead>
+<tr>
+<th>标志</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>EPOLLIN</td>
+<td>读事件：FD 有数据可读（客户端发数据、新连接、客户端断开）</td>
+</tr>
+<tr>
+<td>EPOLLOUT</td>
+<td>写事件：FD 可写（发送缓冲区有空间）</td>
+</tr>
+<tr>
+<td>EPOLLET</td>
+<td>边缘触发（ET 模式）：默认是水平触发（LT）</td>
+</tr>
+<tr>
+<td>EPOLLERR</td>
+<td>异常事件：无需手动注册，内核自动触发</td>
+</tr>
+<tr>
+<td>EPOLLHUP</td>
+<td>挂起事件：比如客户端断开连接，无需手动注册</td>
+</tr>
+<tr>
+<td>EPOLLONESHOT</td>
+<td>仅触发一次事件，需重新调用 epoll_ctl 重置（多线程场景避竞争）</td>
+</tr>
+</tbody></table>
+<h4 id="示例：添加监听-FD"><a href="#示例：添加监听-FD" class="headerlink" title="示例：添加监听 FD"></a>示例：添加监听 FD</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> <span class="title">ev</span>;</span></span><br><span class="line">ev.events = EPOLLIN;  <span class="comment">// 监听读事件（LT 模式）</span></span><br><span class="line">ev.data.fd = lfd;     <span class="comment">// 关联监听套接字</span></span><br><span class="line">epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &amp;ev);  <span class="comment">// 把 lfd 交给 epoll 管家</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-epoll-wait（等待就绪事件）"><a href="#3-epoll-wait（等待就绪事件）" class="headerlink" title="3. epoll_wait（等待就绪事件）"></a>3. epoll_wait（等待就绪事件）</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">epoll_wait</span><span class="params">(<span class="type">int</span> epfd, <span class="keyword">struct</span> epoll_event *events, <span class="type">int</span> maxevents, <span class="type">int</span> timeout)</span>;</span><br></pre></td></tr></table></figure>
+
+<h4 id="参数拆解-1"><a href="#参数拆解-1" class="headerlink" title="参数拆解"></a>参数拆解</h4><table>
+<thead>
+<tr>
+<th>参数</th>
+<th>含义 &amp; 注意事项</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>epfd</td>
+<td>epoll 实例的 fd（指定要查询的 “管家”）</td>
+</tr>
+<tr>
+<td>events</td>
+<td><strong>传出参数</strong>：用户态数组，内核会把 “就绪的 FD 信息” 填充到这个数组里</td>
+</tr>
+<tr>
+<td>maxevents</td>
+<td>events 数组的最大长度（比如 1024），不能超过系统限制</td>
+</tr>
+<tr>
+<td>timeout</td>
+<td>阻塞时长（毫秒）：<br>✅ -1：永久阻塞，直到有 FD 就绪<br>✅ 0：非阻塞，立即返回<br>✅ &gt;0：阻塞指定毫秒后返回</td>
+</tr>
+</tbody></table>
+<h4 id="返回值"><a href="#返回值" class="headerlink" title="返回值"></a>返回值</h4><ul>
+<li><p>&gt; 0：就绪的 FD 数量（events 数组中前 N 个元素有效）；</p>
+</li>
+<li><p>0：超时（没有就绪的 FD）；</p>
+</li>
+<li><p>-1：失败（比如被信号中断）。</p>
+</li>
+</ul>
+<h4 id="关键注意"><a href="#关键注意" class="headerlink" title="关键注意"></a>关键注意</h4><ul>
+<li>events 数组是 “传出” 的，内核会把就绪 FD 的 <code>epoll_event</code> 结构体填进去；</li>
+<li>如果就绪的 FD 数量超过 maxevents，未拷贝的 FD 会留在内核就绪链表中，下次调用 <code>epoll_wait</code> 会继续返回。</li>
+</ul>
+<h2 id="四、服务端使用epoll实现IO多路复用的示例代码"><a href="#四、服务端使用epoll实现IO多路复用的示例代码" class="headerlink" title="四、服务端使用epoll实现IO多路复用的示例代码"></a>四、服务端使用epoll实现IO多路复用的示例代码</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;sys/socket.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;sys/epoll.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;arpa/inet.h&gt;</span>  </span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">()</span>&#123;</span><br><span class="line">	<span class="type">int</span> lfd = socket(AF_INET, SOCK_STREAM, <span class="number">0</span>);</span><br><span class="line">	<span class="keyword">if</span>(lfd == <span class="number">-1</span>)&#123;</span><br><span class="line">		perror(<span class="string">&quot;socket failed&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">sockaddr_in</span> <span class="title">server_addr</span>;</span></span><br><span class="line">	server_addr.sin_family = AF_INET;</span><br><span class="line">	server_addr.sin_port = htons(<span class="number">10000</span>);</span><br><span class="line">	server_addr.sin_addr.s_addr = INADDR_ANY;</span><br><span class="line"></span><br><span class="line">	<span class="type">int</span> bind_res = bind(lfd, (<span class="keyword">struct</span> sockaddr*)&amp;server_addr, <span class="keyword">sizeof</span>(server_addr));</span><br><span class="line">	<span class="keyword">if</span>(bind_res == <span class="number">-1</span>)&#123;</span><br><span class="line">		perror(<span class="string">&quot;bind failed&quot;</span>);</span><br><span class="line">		close(lfd);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	<span class="type">int</span> listen_res = listen(lfd, <span class="number">128</span>);</span><br><span class="line">	<span class="keyword">if</span>(listen_res == <span class="number">-1</span>)&#123;</span><br><span class="line">		perror(<span class="string">&quot;listen failed&quot;</span>);</span><br><span class="line">		close(lfd);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="type">int</span> epfd = epoll_create1(<span class="number">0</span>);</span><br><span class="line">	<span class="keyword">if</span>(epfd == <span class="number">-1</span>)&#123;</span><br><span class="line">		perror(<span class="string">&quot;epoll_create failed&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> <span class="title">ev</span>;</span></span><br><span class="line">	ev.events = EPOLLIN;</span><br><span class="line">	ev.data.fd = lfd;</span><br><span class="line">	<span class="type">int</span> ret = epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &amp;ev);</span><br><span class="line">	<span class="keyword">if</span>(ret == <span class="number">-1</span>)&#123;</span><br><span class="line">		perror(<span class="string">&quot;lfd epoll_ctl failed&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> <span class="title">evs</span>[1024];</span></span><br><span class="line">	<span class="type">int</span> size = <span class="keyword">sizeof</span>(evs)/<span class="keyword">sizeof</span>(<span class="keyword">struct</span> epoll_event);</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">while</span>(<span class="number">1</span>)&#123;</span><br><span class="line">		<span class="type">int</span> num = epoll_wait(epfd, evs, size, <span class="number">-1</span>);</span><br><span class="line">		<span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; num; ++i)&#123;</span><br><span class="line">			<span class="type">int</span> curfd = evs[i].data.fd;</span><br><span class="line">			<span class="keyword">if</span>(curfd == lfd)&#123;</span><br><span class="line">				<span class="type">int</span> cfd = accept(lfd, <span class="literal">NULL</span>, <span class="literal">NULL</span>);</span><br><span class="line">				<span class="keyword">if</span>(cfd == <span class="number">-1</span>)&#123;</span><br><span class="line">					perror(<span class="string">&quot;accept failed&quot;</span>);</span><br><span class="line">					<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">				&#125;  </span><br><span class="line"></span><br><span class="line">				ev.events = EPOLLIN;</span><br><span class="line">				ev.data.fd = cfd;</span><br><span class="line">				<span class="type">int</span> ret = epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &amp;ev);</span><br><span class="line">				<span class="keyword">if</span>(ret == <span class="number">-1</span>)&#123;</span><br><span class="line">					perror(<span class="string">&quot;cfd epoll_ctl failed&quot;</span>);</span><br><span class="line">					<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">else</span>&#123;</span><br><span class="line">				<span class="type">char</span> buffer[<span class="number">1024</span>];</span><br><span class="line">				<span class="built_in">memset</span>(buffer, <span class="number">0</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">				<span class="type">int</span> len = read(curfd, buffer, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">				<span class="keyword">if</span>(len &gt; <span class="number">0</span>)&#123;</span><br><span class="line">					<span class="built_in">printf</span>(<span class="string">&quot;客户端：%s\n&quot;</span>, buffer);</span><br><span class="line">					write(curfd, buffer, len);</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">else</span> <span class="keyword">if</span>(len == <span class="number">0</span>)&#123;</span><br><span class="line">					<span class="built_in">printf</span>(<span class="string">&quot;客户端断开连接...\n&quot;</span>);</span><br><span class="line">					epoll_ctl(epfd, EPOLL_CTL_DEL, curfd, &amp;ev);</span><br><span class="line">					close(curfd);</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">else</span>&#123;</span><br><span class="line">					perror(<span class="string">&quot;read failed&quot;</span>);</span><br><span class="line">					<span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">  </span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="1-创建监听套接字"><a href="#1-创建监听套接字" class="headerlink" title="1. 创建监听套接字"></a>1. 创建监听套接字</h3><p><img src="/images/epoll.jpg" alt="epoll"></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> lfd = socket(AF_INET, SOCK_STREAM, <span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>调用 <code>socket()</code> 创建一个 TCP 类型的监听套接字 <code>lfd</code>，用于接收客户端的连接请求；</li>
+<li>失败则打印错误并退出程序。</li>
+</ul>
+<h3 id="2-绑定套接字到指定端口和地址"><a href="#2-绑定套接字到指定端口和地址" class="headerlink" title="2. 绑定套接字到指定端口和地址"></a>2. 绑定套接字到指定端口和地址</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">sockaddr_in</span> <span class="title">server_addr</span>;</span></span><br><span class="line"><span class="comment">// 初始化地址结构体（协议族、端口、监听所有网卡）</span></span><br><span class="line">server_addr.sin_family = AF_INET;</span><br><span class="line">server_addr.sin_port = htons(<span class="number">10000</span>);</span><br><span class="line">server_addr.sin_addr.s_addr = INADDR_ANY;</span><br><span class="line">bind(lfd, (<span class="keyword">struct</span> sockaddr*)&amp;server_addr, <span class="keyword">sizeof</span>(server_addr));</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>将监听套接字 <code>lfd</code> 与端口 10000、本机所有网卡地址绑定，使客户端能通过 <code>IP:10000</code> 访问服务端；</li>
+<li>失败则关闭 <code>lfd</code> 并退出程序。</li>
+</ul>
+<h3 id="3-开启监听"><a href="#3-开启监听" class="headerlink" title="3. 开启监听"></a>3. 开启监听</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">listen(lfd, <span class="number">128</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>将 <code>lfd</code> 从 “主动套接字” 转为 “被动套接字”，开始监听客户端的连接请求；</li>
+<li>第二个参数 128 是半连接队列的最大长度，失败则关闭 <code>lfd</code> 并退出程序。</li>
+</ul>
+<h3 id="4-创建-epoll-实例"><a href="#4-创建-epoll-实例" class="headerlink" title="4. 创建 epoll 实例"></a>4. 创建 epoll 实例</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> epfd = epoll_create1(<span class="number">0</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>创建 epoll 实例，内核会为该实例分配内存（存储监听的 FD 红黑树、就绪 FD 链表）；</li>
+<li>返回的 <code>epfd</code> 是 epoll 实例的文件描述符，失败则退出程序。</li>
+</ul>
+<h3 id="5-将监听套接字加入-epoll-实例"><a href="#5-将监听套接字加入-epoll-实例" class="headerlink" title="5. 将监听套接字加入 epoll 实例"></a>5. 将监听套接字加入 epoll 实例</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">epoll_event</span> <span class="title">ev</span>;</span></span><br><span class="line">ev.events = EPOLLIN;  <span class="comment">// 监听读事件（有新连接请求时触发）</span></span><br><span class="line">ev.data.fd = lfd;     <span class="comment">// 关联监听套接字 lfd</span></span><br><span class="line">epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &amp;ev);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>调用 <code>epoll_ctl</code> 的 <code>EPOLL_CTL_ADD</code> 操作，将 <code>lfd</code> 添加到 epoll 实例的监听集合中；</li>
+<li>告知 epoll 要监听 <code>lfd</code> 的读事件（<code>EPOLLIN</code>），失败则退出程序。</li>
+</ul>
+<h3 id="6-进入无限循环，阻塞等待就绪事件"><a href="#6-进入无限循环，阻塞等待就绪事件" class="headerlink" title="6. 进入无限循环，阻塞等待就绪事件"></a>6. 进入无限循环，阻塞等待就绪事件</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span>(<span class="number">1</span>) &#123;</span><br><span class="line">    <span class="type">int</span> num = epoll_wait(epfd, evs, size, <span class="number">-1</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>调用 <code>epoll_wait</code> 阻塞程序，直到 epoll 实例中有 FD 就绪（超时时间 -1 表示永久阻塞）；</li>
+<li>返回值 <code>num</code> 是就绪 FD 的数量，<code>evs</code> 数组存储所有就绪 FD 的事件信息。</li>
+</ul>
+<h3 id="7-遍历所有就绪的-FD，逐个处理事件"><a href="#7-遍历所有就绪的-FD，逐个处理事件" class="headerlink" title="7. 遍历所有就绪的 FD，逐个处理事件"></a>7. 遍历所有就绪的 FD，逐个处理事件</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span>(<span class="type">int</span> i = <span class="number">0</span>; i &lt; num; ++i) &#123;</span><br><span class="line">    <span class="type">int</span> curfd = evs[i].data.fd;  <span class="comment">// 获取当前就绪的 FD</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="分支-1：处理新连接事件（就绪-FD-是监听套接字-lfd）"><a href="#分支-1：处理新连接事件（就绪-FD-是监听套接字-lfd）" class="headerlink" title="分支 1：处理新连接事件（就绪 FD 是监听套接字 lfd）"></a>分支 1：处理新连接事件（就绪 FD 是监听套接字 lfd）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span>(curfd == lfd) &#123;</span><br><span class="line">    <span class="comment">// 接收新客户端连接，返回通信套接字 cfd</span></span><br><span class="line">    <span class="type">int</span> cfd = accept(lfd, <span class="literal">NULL</span>, <span class="literal">NULL</span>);</span><br><span class="line">    <span class="comment">// 将 cfd 添加到 epoll 实例，监听其读事件（客户端发数据时触发）</span></span><br><span class="line">    ev.events = EPOLLIN;</span><br><span class="line">    ev.data.fd = cfd;</span><br><span class="line">    epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &amp;ev);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>当 <code>curfd == lfd</code> 时，说明有新客户端发起连接请求；</li>
+<li>调用 <code>accept()</code> 接收连接，返回用于与该客户端通信的套接字 <code>cfd</code>；</li>
+<li>将 <code>cfd</code> 添加到 epoll 实例，监听其读事件，使 epoll 能检测该客户端的数据发送行为。</li>
+</ul>
+<h4 id="分支-2：处理客户端通信事件（就绪-FD-是通信套接字-cfd）"><a href="#分支-2：处理客户端通信事件（就绪-FD-是通信套接字-cfd）" class="headerlink" title="分支 2：处理客户端通信事件（就绪 FD 是通信套接字 cfd）"></a>分支 2：处理客户端通信事件（就绪 FD 是通信套接字 cfd）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="type">char</span> buffer[<span class="number">1024</span>];</span><br><span class="line">    <span class="built_in">memset</span>(buffer, <span class="number">0</span>, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">    <span class="comment">// 读取客户端发送的数据</span></span><br><span class="line">    <span class="type">int</span> len = read(curfd, buffer, <span class="keyword">sizeof</span>(buffer));</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span>(len &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 读取到数据，回显给客户端</span></span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;客户端：%s\n&quot;</span>, buffer);</span><br><span class="line">        write(curfd, buffer, len);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span>(len == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// len == 0 表示客户端主动断开连接</span></span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;客户端断开连接...\n&quot;</span>);</span><br><span class="line">        <span class="comment">// 从 epoll 实例中删除该 FD，停止监听</span></span><br><span class="line">        epoll_ctl(epfd, EPOLL_CTL_DEL, curfd, &amp;ev);</span><br><span class="line">        <span class="comment">// 关闭通信套接字，释放资源</span></span><br><span class="line">        close(curfd);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// read 调用失败，打印错误并退出程序</span></span><br><span class="line">        perror(<span class="string">&quot;read failed&quot;</span>);</span><br><span class="line">        <span class="built_in">exit</span>(<span class="number">0</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>当 <code>curfd != lfd</code> 时，说明是已连接的客户端有数据发送 &#x2F; 连接断开；</li>
+<li>调用 <code>read()</code> 读取客户端数据：<ul>
+<li>读取成功（<code>len &gt; 0</code>）：打印数据并通过 <code>write()</code> 回显给客户端；</li>
+<li>读取到 0 字节（<code>len == 0</code>）：客户端主动断开连接，从 epoll 中删除该 FD 并关闭；</li>
+<li>读取失败（<code>len &lt; 0</code>）：打印错误并退出程序。</li>
+</ul>
+</li>
+</ul>
+<h2 id="五、epoll-两种工作模式（LT-vs-ET，核心重点）"><a href="#五、epoll-两种工作模式（LT-vs-ET，核心重点）" class="headerlink" title="五、epoll 两种工作模式（LT vs ET，核心重点）"></a>五、epoll 两种工作模式（LT vs ET，核心重点）</h2><p>这是 epoll 最容易踩坑的地方，我们用 “快递” 的类比讲清楚：</p>
+<h3 id="1-水平触发（LT，默认）"><a href="#1-水平触发（LT，默认）" class="headerlink" title="1. 水平触发（LT，默认）"></a>1. 水平触发（LT，默认）</h3><ul>
+<li><strong>类比</strong>：你网购了一个快递，快递员送到小区门口，会一直给你打电话（直到你取走）；</li>
+<li><strong>核心规则</strong>：只要 FD 处于 “就绪状态”（比如读缓冲区有数据），每次调用 <code>epoll_wait</code> 都会返回这个 FD；</li>
+<li><strong>编程要求</strong>：无需一次性读完数据，容错高（比如读了一半数据，下次还能收到通知）；</li>
+<li><strong>适用场景</strong>：新手入门、大部分业务场景（比如普通 Web 服务器）。</li>
+</ul>
+<h3 id="2-边缘触发（ET，高速模式）"><a href="#2-边缘触发（ET，高速模式）" class="headerlink" title="2. 边缘触发（ET，高速模式）"></a>2. 边缘触发（ET，高速模式）</h3><ul>
+<li><p><strong>类比</strong>：快递员只给你打一次电话（不管你取没取），只有新快递到了才会再打；</p>
+</li>
+<li><p><strong>核心规则</strong>：仅当 FD 从 “非就绪” 变为 “就绪” 时触发一次通知（比如新数据到达读缓冲区）；</p>
+</li>
+<li><p><strong>编程要求</strong>（必须满足，否则丢数据）：</p>
+<ol>
+<li>FD 必须设置为<strong>非阻塞</strong>（避免循环读写时阻塞）；</li>
+<li>读写操作必须<strong>循环执行</strong>，直到返回 <code>EAGAIN/EWOULDBLOCK</code>（表示数据已读完 &#x2F; 写缓冲区满）。</li>
+</ol>
+</li>
+<li><p><strong>适用场景</strong>：高并发场景（比如百万连接的网关、Redis&#x2F;Nginx 底层），追求极致性能。</p>
+</li>
+</ul>
+<h3 id="LT-vs-ET-核心对比表"><a href="#LT-vs-ET-核心对比表" class="headerlink" title="LT vs ET 核心对比表"></a>LT vs ET 核心对比表</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>水平触发（LT）</th>
+<th>边缘触发（ET）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>触发时机</td>
+<td>只要 FD 就绪，持续触发</td>
+<td>仅 FD 状态变化时触发一次</td>
+</tr>
+<tr>
+<td>阻塞要求</td>
+<td>支持阻塞 &#x2F; 非阻塞 FD</td>
+<td>必须用非阻塞 FD</td>
+</tr>
+<tr>
+<td>编程难度</td>
+<td>简单，容错高</td>
+<td>复杂，需循环读写</td>
+</tr>
+<tr>
+<td>性能</td>
+<td>一般（通知次数多）</td>
+<td>更高（通知次数少）</td>
+</tr>
+<tr>
+<td>数据丢失风险</td>
+<td>低</td>
+<td>高（未读完数据会丢）</td>
+</tr>
+</tbody></table>
+<h3 id="关键：ET-模式如何正确读写数据？"><a href="#关键：ET-模式如何正确读写数据？" class="headerlink" title="关键：ET 模式如何正确读写数据？"></a>关键：ET 模式如何正确读写数据？</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 先把 FD 设置为非阻塞</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">set_nonblock</span><span class="params">(<span class="type">int</span> fd)</span> &#123;</span><br><span class="line">    <span class="type">int</span> flag = fcntl(fd, F_GETFL);</span><br><span class="line">    flag |= O_NONBLOCK;</span><br><span class="line">    <span class="keyword">return</span> fcntl(fd, F_SETFL, flag);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. 循环读取数据（直到 EAGAIN）</span></span><br><span class="line"><span class="type">char</span> buf[<span class="number">1024</span>];</span><br><span class="line"><span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">    <span class="type">int</span> len = recv(curfd, buf, <span class="keyword">sizeof</span>(buf), <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> (len &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 处理数据</span></span><br><span class="line">        send(curfd, buf, len, <span class="number">0</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (len == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// 客户端断开连接</span></span><br><span class="line">        epoll_ctl(epfd, EPOLL_CTL_DEL, curfd, <span class="literal">NULL</span>);</span><br><span class="line">        close(curfd);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// len == -1</span></span><br><span class="line">        <span class="keyword">if</span> (errno == EAGAIN || errno == EWOULDBLOCK) &#123;</span><br><span class="line">            <span class="comment">// 数据已读完，正常退出</span></span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 真正的错误，关闭 FD</span></span><br><span class="line">            perror(<span class="string">&quot;recv error&quot;</span>);</span><br><span class="line">            epoll_ctl(epfd, EPOLL_CTL_DEL, curfd, <span class="literal">NULL</span>);</span><br><span class="line">            close(curfd);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>fcntl()函数</strong><br><code>fcntl</code>（file control）是 Unix&#x2F;Linux 系统中用于<strong>控制文件描述符属性</strong>的核心系统调用，简单来说，它的作用是 “给已打开的文件描述符设置 &#x2F; 获取各种参数”。</p>
+<p>它的函数原型如下（C 语言）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">fcntl</span><span class="params">(<span class="type">int</span> fd, <span class="type">int</span> cmd, ... <span class="comment">/* arg */</span> )</span>;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>参数：</strong><ul>
+<li><code>fd</code>：要操作的文件描述符（比如打开文件返回的 <code>0/1/2</code> 标准输入 &#x2F; 输出 &#x2F; 错误，或 <code>open()</code> 返回的自定义 fd）。</li>
+<li><code>cmd</code>：操作指令（核心参数，决定要做什么）。</li>
+<li><code>...</code>：可选参数，根据 <code>cmd</code> 的不同，传入不同类型的值（如 <code>int</code> 或 <code>struct flock</code>）。</li>
+</ul>
+</li>
+<li><strong>返回值：</strong> 成功返回非负整数（具体值看 <code>cmd</code>），失败返回 <code>-1</code> 并设置 <code>errno</code>。</li>
+</ul>
+<p><strong>示例：用 <code>fcntl</code> 设置非阻塞模式</strong></p>
+<p>文件描述符（fd）有一组<strong>状态标志</strong>，其中 <code>O_NONBLOCK</code> 就是非阻塞标志。我们通过 <code>fcntl</code> 读取当前标志，添加 <code>O_NONBLOCK</code> 后再写回，就可以让 fd 进入非阻塞模式。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;errno.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 将文件描述符设置为非阻塞模式</span></span><br><span class="line"><span class="type">int</span> <span class="title function_">set_nonblock</span><span class="params">(<span class="type">int</span> fd)</span> &#123;</span><br><span class="line">    <span class="comment">// 1. 获取当前的状态标志</span></span><br><span class="line">    <span class="type">int</span> flags = fcntl(fd, F_GETFL, <span class="number">0</span>);</span><br><span class="line">    <span class="keyword">if</span> (flags == <span class="number">-1</span>) &#123;</span><br><span class="line">        perror(<span class="string">&quot;fcntl F_GETFL failed&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. 添加非阻塞标志（用 | 保留原有标志）</span></span><br><span class="line">    flags |= O_NONBLOCK;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 3. 设置新的状态标志</span></span><br><span class="line">    <span class="keyword">if</span> (fcntl(fd, F_SETFL, flags) == <span class="number">-1</span>) &#123;</span><br><span class="line">        perror(<span class="string">&quot;fcntl F_SETFL failed&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>取消非阻塞：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">flags &amp;= ~O_NONBLOCK; </span><br><span class="line">fcntl(fd, F_SETFL, flags);</span><br></pre></td></tr></table></figure>
+
+<p><strong><code>O_NONBLOCK</code>原理简述（了解）</strong></p>
+<p><code>O_NONBLOCK</code> 是一个宏定义（通常在 <code>fcntl.h</code> 中），它的本质是一个<strong>整数常量</strong>，且这个整数的二进制形式只有<strong>某一位是 1，其余位都是 0</strong>。</p>
+<p>比如在大多数系统中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> O_NONBLOCK 04000  <span class="comment">// 八进制，对应二进制是 100 0000 0000 0000</span></span></span><br><span class="line"><span class="comment">// 换算成十进制是 2048，二进制是第 11 位（从 0 开始数）为 1</span></span><br></pre></td></tr></table></figure>
+
+<p>假设当前 fd 的状态标志 <code>flags</code> 是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">二进制：1001 0100 1000 0000  （包含 O_NONBLOCK，第 11 位是 1）</span><br><span class="line">十进制：37952</span><br></pre></td></tr></table></figure>
+
+<p><code>~</code> 是<strong>按位取反运算符</strong>，会把二进制的每一位都翻转（1→0，0→1）。</p>
+<p>以 <code>O_NONBLOCK = 04000</code>（二进制 <code>100 0000 0000 0000</code>）为例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">O_NONBLOCK 的二进制：0000 0000 1000 0000 0000 0000 （简化为 32 位）</span><br><span class="line">~O_NONBLOCK 的二进制：1111 1111 0111 1111 1111 1111</span><br></pre></td></tr></table></figure>
+
+<p>这个取反后的结果，就是<strong>清除 O_NONBLOCK 标志的掩码</strong>：</p>
+<ul>
+<li>对应 <code>O_NONBLOCK</code> 的位是 0，其余位都是 1。</li>
+</ul>
+<h2 id="六、epoll-常见坑点（避坑指南）"><a href="#六、epoll-常见坑点（避坑指南）" class="headerlink" title="六、epoll 常见坑点（避坑指南）"></a>六、epoll 常见坑点（避坑指南）</h2><h3 id="坑-1：ET-模式未设置非阻塞-→-进程阻塞"><a href="#坑-1：ET-模式未设置非阻塞-→-进程阻塞" class="headerlink" title="坑 1：ET 模式未设置非阻塞 → 进程阻塞"></a>坑 1：ET 模式未设置非阻塞 → 进程阻塞</h3><ul>
+<li>现象：服务端卡死，无法处理其他连接；</li>
+<li>原因：ET 模式下循环读数据，缓冲区空时 <code>recv</code> 阻塞；</li>
+<li>解决：必须用 <code>fcntl</code> 把 FD 设置为非阻塞。</li>
+</ul>
+<h3 id="坑-2：ET-模式未循环读数据-→-数据丢失"><a href="#坑-2：ET-模式未循环读数据-→-数据丢失" class="headerlink" title="坑 2：ET 模式未循环读数据 → 数据丢失"></a>坑 2：ET 模式未循环读数据 → 数据丢失</h3><ul>
+<li>现象：客户端发大量数据，服务端只收到一部分；</li>
+<li>原因：ET 模式仅触发一次通知，未读完的数据不会再通知；</li>
+<li>解决：循环读直到 <code>errno == EAGAIN</code>。</li>
+</ul>
+<h3 id="坑-3：监听-EPOLLOUT-→-CPU-100"><a href="#坑-3：监听-EPOLLOUT-→-CPU-100" class="headerlink" title="坑 3：监听 EPOLLOUT → CPU 100%"></a>坑 3：监听 EPOLLOUT → CPU 100%</h3><ul>
+<li>现象：服务端 CPU 占用率极高；</li>
+<li>原因：写缓冲区大部分时间可写，<code>epoll_wait</code> 频繁返回，循环空转；</li>
+<li>解决：仅当需要写数据时，才添加 EPOLLOUT 监听，写完后立即删除。</li>
+</ul>
+<h3 id="坑-4：关闭-FD-未从-epoll-删除-→-无效事件"><a href="#坑-4：关闭-FD-未从-epoll-删除-→-无效事件" class="headerlink" title="坑 4：关闭 FD 未从 epoll 删除 → 无效事件"></a>坑 4：关闭 FD 未从 epoll 删除 → 无效事件</h3><ul>
+<li>现象：<code>epoll_wait</code> 频繁返回已关闭的 FD，报错 <code>EBADF</code>；</li>
+<li>原因：FD 关闭后，内核不会自动从 epoll 红黑树删除；</li>
+<li>解决：关闭 FD 前，先调用 <code>epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL)</code>。</li>
+</ul>
+<h2 id="七、总结（核心要点回顾）"><a href="#七、总结（核心要点回顾）" class="headerlink" title="七、总结（核心要点回顾）"></a>七、总结（核心要点回顾）</h2><ol>
+<li><strong>epoll 核心优势</strong>：基于红黑树 + 就绪链表管理 FD，回调机制触发事件，mmap 减少拷贝，效率 O (1)，无 FD 数量限制；</li>
+<li><strong>两种模式</strong>：LT 模式易编程、容错高（默认），ET 模式效率高但需非阻塞 + 循环读写；</li>
+<li><strong>核心步骤</strong>：创建监听 FD → 创建 epoll 实例 → 添加监听 FD → epoll_wait 检测事件 → 处理新连接 &#x2F; 通信数据 → 循环检测；</li>
+<li><strong>避坑关键</strong>：ET 模式必须非阻塞 + 循环读写，关闭 FD 前要从 epoll 删除，避免监听不必要的 EPOLLOUT。</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/29/6-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-epoll/">http://example.com/2026/04/29/6-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-epoll/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/">IO多路复用</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/04/29/5-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-poll/" title="5.IO多路复用-poll"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">5.IO多路复用-poll</div></div><div class="info-2"><div class="info-item-1">pollpoll使用相对较少，跨平台推荐select，高并发推荐epoll 一、poll 核心概念poll 是 Linux 下另一种多路复用 I&#x2F;O 模型，与你之前学习的 select 功能类似（监控多个文件描述符的事件），但解决了 select 的部分缺陷，是网络编程中实现多客户端并发的常用方案。 1.1 与 select 的核心区别（对比你的 select 代码）   特性 select poll    文件描述符集合存储 固定大小的位图（fd_set） 动态的结构体数组（pollfd）   最大监控描述符限制 受限于 FD_SETSIZE（默认 1024） 无硬限制，仅受系统资源约束   事件重置 每次需重新初始化集合 无需重置，事件结果存在 revents 中   参数传递 值传递（会修改原集合） 结构体数组（输入输出分离）   1.2 核心优势 突破 select 最大 1024 个文件描述符的限制； 无需像 select 那样每次循环重置文件描述符集合； 支持更多类型的事件监控（如普通读、带外数据读、出错等）。  二、poll 核心 API 详解2.1 头文...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/04/29/5-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-poll/" title="5.IO多路复用-poll"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-04-29</div><div class="info-item-2">5.IO多路复用-poll</div></div><div class="info-2"><div class="info-item-1">pollpoll使用相对较少，跨平台推荐select，高并发推荐epoll 一、poll 核心概念poll 是 Linux 下另一种多路复用 I&#x2F;O 模型，与你之前学习的 select 功能类似（监控多个文件描述符的事件），但解决了 select 的部分缺陷，是网络编程中实现多客户端并发的常用方案。 1.1 与 select 的核心区别（对比你的 select 代码）   特性 select poll    文件描述符集合存储 固定大小的位图（fd_set） 动态的结构体数组（pollfd）   最大监控描述符限制 受限于 FD_SETSIZE（默认 1024） 无硬限制，仅受系统资源约束   事件重置 每次需重新初始化集合 无需重置，事件结果存在 revents 中   参数传递 值传递（会修改原集合） 结构体数组（输入输出分离）   1.2 核心优势 突破 select 最大 1024 个文件描述符的限制； 无需像 select 那样每次循环重置文件描述符集合； 支持更多类型的事件监控（如普通读、带外数据读、出错等）。  二、poll 核心 API 详解2.1 头文...</div></div></div></a><a class="pagination-related" href="/2026/04/28/4-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-select/" title="4.IO多路复用-select"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-04-28</div><div class="info-item-2">4.IO多路复用-select</div></div><div class="info-2"><div class="info-item-1">IO多路复用IO 多路复用是一种让单个线程（或少量线程）能够同时监听多个文件描述符（File Descriptor，FD，比如网络连接、文件、管道）的技术，当某个 FD 有可读 &#x2F; 可写事件发生时，系统会通知程序去处理对应的 IO 操作。 它解决的核心问题是：避免线程 &#x2F; 进程阻塞在单个 IO 操作上，提升程序处理大量并发 IO 的能力（比如高并发的服务器）。 IO 多路复用的三种核心实现（Linux 下）    方式 特点 适用场景    select 监听的 FD 数量有限（默认 1024），每次调用需要拷贝 FD 集合，效率低 兼容性好，低并发场景   poll 突破 FD 数量限制，但仍需遍历所有 FD，高并发下效率一般 中等并发，需要兼容多系统   epoll 基于事件驱动，只处理有事件的 FD，无 FD 数量上限，效率最高 高并发场景（如百万连接）   select函数原型select 是 IO 多路复用的基础实现，内部基于线性表实现的，核心作用是委托内核批量检测多个文件描述符（fd）的读写 &#x2F; 异常状态，且具备跨平台特性（Linux&#...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">18</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#epoll"><span class="toc-number">1.</span> <span class="toc-text">epoll</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E6%A0%B8%E5%BF%83%E8%83%8C%E6%99%AF"><span class="toc-number">1.1.</span> <span class="toc-text">一、核心背景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%9A%E4%BF%97%E7%B1%BB%E6%AF%94"><span class="toc-number">1.1.1.</span> <span class="toc-text">通俗类比</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81epoll-%E6%A0%B8%E5%BF%83%E5%BA%95%E5%B1%82%E5%8E%9F%E7%90%86"><span class="toc-number">1.2.</span> <span class="toc-text">二、epoll 核心底层原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%EF%BC%9A%E7%BA%A2%E9%BB%91%E6%A0%91-%E5%B0%B1%E7%BB%AA%E9%93%BE%E8%A1%A8"><span class="toc-number">1.2.1.</span> <span class="toc-text">1. 核心数据结构：红黑树 + 就绪链表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%86%85%E5%AD%98%E6%98%A0%E5%B0%84%EF%BC%88mmap%EF%BC%89%EF%BC%9A%E5%87%8F%E5%B0%91%E5%86%85%E6%A0%B8-%E7%94%A8%E6%88%B7%E6%80%81%E6%8B%B7%E8%B4%9D"><span class="toc-number">1.2.2.</span> <span class="toc-text">2. 内存映射（mmap）：减少内核 &#x2F; 用户态拷贝</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E8%A7%A3%E8%80%A6%E8%AE%BE%E8%AE%A1%EF%BC%9A%E6%8A%8A-%E2%80%9C%E6%B3%A8%E5%86%8C-FD%E2%80%9D-%E5%92%8C-%E2%80%9C%E7%AD%89%E5%BE%85%E4%BA%8B%E4%BB%B6%E2%80%9D-%E5%88%86%E5%BC%80"><span class="toc-number">1.2.3.</span> <span class="toc-text">3. 解耦设计：把 “注册 FD” 和 “等待事件” 分开</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81epoll-%E6%A0%B8%E5%BF%83-API-%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90"><span class="toc-number">1.3.</span> <span class="toc-text">三、epoll 核心 API 深度解析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-epoll-create-epoll-create1%EF%BC%88%E5%88%9B%E5%BB%BA-epoll-%E5%AE%9E%E4%BE%8B%EF%BC%89"><span class="toc-number">1.3.1.</span> <span class="toc-text">1. epoll_create &#x2F;epoll_create1（创建 epoll 实例）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#epoll-create1-%E5%87%BD%E6%95%B0"><span class="toc-number">1.3.1.1.</span> <span class="toc-text">epoll_create1()函数</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#1-%E5%8F%82%E6%95%B0%EF%BC%9Aint-flags%EF%BC%88%E6%A0%87%E5%BF%97%E4%BD%8D%EF%BC%89"><span class="toc-number">1.3.1.1.1.</span> <span class="toc-text">1. 参数：int flags（标志位）</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#2-%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="toc-number">1.3.1.1.2.</span> <span class="toc-text">2. 返回值</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-epoll-ctl%EF%BC%88%E7%AE%A1%E7%90%86%E7%9B%91%E5%90%AC%E7%9A%84-FD%EF%BC%89"><span class="toc-number">1.3.2.</span> <span class="toc-text">2. epoll_ctl（管理监听的 FD）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%82%E6%95%B0%E6%8B%86%E8%A7%A3"><span class="toc-number">1.3.2.1.</span> <span class="toc-text">参数拆解</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E8%BF%94%E5%9B%9E%E5%80%BC%E5%90%AB%E4%B9%89"><span class="toc-number">1.3.2.2.</span> <span class="toc-text">核心返回值含义</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E7%BB%93%E6%9E%84%E4%BD%93%EF%BC%9Astruct-epoll-event"><span class="toc-number">1.3.2.3.</span> <span class="toc-text">核心结构体：struct epoll_event</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%B8%B8%E7%94%A8-events-%E6%A0%87%E5%BF%97%EF%BC%88%E5%BF%85%E8%AE%B0%EF%BC%89"><span class="toc-number">1.3.2.4.</span> <span class="toc-text">常用 events 标志（必记）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%A4%BA%E4%BE%8B%EF%BC%9A%E6%B7%BB%E5%8A%A0%E7%9B%91%E5%90%AC-FD"><span class="toc-number">1.3.2.5.</span> <span class="toc-text">示例：添加监听 FD</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-epoll-wait%EF%BC%88%E7%AD%89%E5%BE%85%E5%B0%B1%E7%BB%AA%E4%BA%8B%E4%BB%B6%EF%BC%89"><span class="toc-number">1.3.3.</span> <span class="toc-text">3. epoll_wait（等待就绪事件）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%82%E6%95%B0%E6%8B%86%E8%A7%A3-1"><span class="toc-number">1.3.3.1.</span> <span class="toc-text">参数拆解</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%BF%94%E5%9B%9E%E5%80%BC"><span class="toc-number">1.3.3.2.</span> <span class="toc-text">返回值</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E6%B3%A8%E6%84%8F"><span class="toc-number">1.3.3.3.</span> <span class="toc-text">关键注意</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%9C%8D%E5%8A%A1%E7%AB%AF%E4%BD%BF%E7%94%A8epoll%E5%AE%9E%E7%8E%B0IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8%E7%9A%84%E7%A4%BA%E4%BE%8B%E4%BB%A3%E7%A0%81"><span class="toc-number">1.4.</span> <span class="toc-text">四、服务端使用epoll实现IO多路复用的示例代码</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%88%9B%E5%BB%BA%E7%9B%91%E5%90%AC%E5%A5%97%E6%8E%A5%E5%AD%97"><span class="toc-number">1.4.1.</span> <span class="toc-text">1. 创建监听套接字</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E7%BB%91%E5%AE%9A%E5%A5%97%E6%8E%A5%E5%AD%97%E5%88%B0%E6%8C%87%E5%AE%9A%E7%AB%AF%E5%8F%A3%E5%92%8C%E5%9C%B0%E5%9D%80"><span class="toc-number">1.4.2.</span> <span class="toc-text">2. 绑定套接字到指定端口和地址</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%BC%80%E5%90%AF%E7%9B%91%E5%90%AC"><span class="toc-number">1.4.3.</span> <span class="toc-text">3. 开启监听</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%88%9B%E5%BB%BA-epoll-%E5%AE%9E%E4%BE%8B"><span class="toc-number">1.4.4.</span> <span class="toc-text">4. 创建 epoll 实例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E5%B0%86%E7%9B%91%E5%90%AC%E5%A5%97%E6%8E%A5%E5%AD%97%E5%8A%A0%E5%85%A5-epoll-%E5%AE%9E%E4%BE%8B"><span class="toc-number">1.4.5.</span> <span class="toc-text">5. 将监听套接字加入 epoll 实例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-%E8%BF%9B%E5%85%A5%E6%97%A0%E9%99%90%E5%BE%AA%E7%8E%AF%EF%BC%8C%E9%98%BB%E5%A1%9E%E7%AD%89%E5%BE%85%E5%B0%B1%E7%BB%AA%E4%BA%8B%E4%BB%B6"><span class="toc-number">1.4.6.</span> <span class="toc-text">6. 进入无限循环，阻塞等待就绪事件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-%E9%81%8D%E5%8E%86%E6%89%80%E6%9C%89%E5%B0%B1%E7%BB%AA%E7%9A%84-FD%EF%BC%8C%E9%80%90%E4%B8%AA%E5%A4%84%E7%90%86%E4%BA%8B%E4%BB%B6"><span class="toc-number">1.4.7.</span> <span class="toc-text">7. 遍历所有就绪的 FD，逐个处理事件</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-1%EF%BC%9A%E5%A4%84%E7%90%86%E6%96%B0%E8%BF%9E%E6%8E%A5%E4%BA%8B%E4%BB%B6%EF%BC%88%E5%B0%B1%E7%BB%AA-FD-%E6%98%AF%E7%9B%91%E5%90%AC%E5%A5%97%E6%8E%A5%E5%AD%97-lfd%EF%BC%89"><span class="toc-number">1.4.7.1.</span> <span class="toc-text">分支 1：处理新连接事件（就绪 FD 是监听套接字 lfd）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-2%EF%BC%9A%E5%A4%84%E7%90%86%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%80%9A%E4%BF%A1%E4%BA%8B%E4%BB%B6%EF%BC%88%E5%B0%B1%E7%BB%AA-FD-%E6%98%AF%E9%80%9A%E4%BF%A1%E5%A5%97%E6%8E%A5%E5%AD%97-cfd%EF%BC%89"><span class="toc-number">1.4.7.2.</span> <span class="toc-text">分支 2：处理客户端通信事件（就绪 FD 是通信套接字 cfd）</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81epoll-%E4%B8%A4%E7%A7%8D%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F%EF%BC%88LT-vs-ET%EF%BC%8C%E6%A0%B8%E5%BF%83%E9%87%8D%E7%82%B9%EF%BC%89"><span class="toc-number">1.5.</span> <span class="toc-text">五、epoll 两种工作模式（LT vs ET，核心重点）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%B0%B4%E5%B9%B3%E8%A7%A6%E5%8F%91%EF%BC%88LT%EF%BC%8C%E9%BB%98%E8%AE%A4%EF%BC%89"><span class="toc-number">1.5.1.</span> <span class="toc-text">1. 水平触发（LT，默认）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%BE%B9%E7%BC%98%E8%A7%A6%E5%8F%91%EF%BC%88ET%EF%BC%8C%E9%AB%98%E9%80%9F%E6%A8%A1%E5%BC%8F%EF%BC%89"><span class="toc-number">1.5.2.</span> <span class="toc-text">2. 边缘触发（ET，高速模式）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#LT-vs-ET-%E6%A0%B8%E5%BF%83%E5%AF%B9%E6%AF%94%E8%A1%A8"><span class="toc-number">1.5.3.</span> <span class="toc-text">LT vs ET 核心对比表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%EF%BC%9AET-%E6%A8%A1%E5%BC%8F%E5%A6%82%E4%BD%95%E6%AD%A3%E7%A1%AE%E8%AF%BB%E5%86%99%E6%95%B0%E6%8D%AE%EF%BC%9F"><span class="toc-number">1.5.4.</span> <span class="toc-text">关键：ET 模式如何正确读写数据？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81epoll-%E5%B8%B8%E8%A7%81%E5%9D%91%E7%82%B9%EF%BC%88%E9%81%BF%E5%9D%91%E6%8C%87%E5%8D%97%EF%BC%89"><span class="toc-number">1.6.</span> <span class="toc-text">六、epoll 常见坑点（避坑指南）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9D%91-1%EF%BC%9AET-%E6%A8%A1%E5%BC%8F%E6%9C%AA%E8%AE%BE%E7%BD%AE%E9%9D%9E%E9%98%BB%E5%A1%9E-%E2%86%92-%E8%BF%9B%E7%A8%8B%E9%98%BB%E5%A1%9E"><span class="toc-number">1.6.1.</span> <span class="toc-text">坑 1：ET 模式未设置非阻塞 → 进程阻塞</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9D%91-2%EF%BC%9AET-%E6%A8%A1%E5%BC%8F%E6%9C%AA%E5%BE%AA%E7%8E%AF%E8%AF%BB%E6%95%B0%E6%8D%AE-%E2%86%92-%E6%95%B0%E6%8D%AE%E4%B8%A2%E5%A4%B1"><span class="toc-number">1.6.2.</span> <span class="toc-text">坑 2：ET 模式未循环读数据 → 数据丢失</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9D%91-3%EF%BC%9A%E7%9B%91%E5%90%AC-EPOLLOUT-%E2%86%92-CPU-100"><span class="toc-number">1.6.3.</span> <span class="toc-text">坑 3：监听 EPOLLOUT → CPU 100%</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9D%91-4%EF%BC%9A%E5%85%B3%E9%97%AD-FD-%E6%9C%AA%E4%BB%8E-epoll-%E5%88%A0%E9%99%A4-%E2%86%92-%E6%97%A0%E6%95%88%E4%BA%8B%E4%BB%B6"><span class="toc-number">1.6.4.</span> <span class="toc-text">坑 4：关闭 FD 未从 epoll 删除 → 无效事件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93%EF%BC%88%E6%A0%B8%E5%BF%83%E8%A6%81%E7%82%B9%E5%9B%9E%E9%A1%BE%EF%BC%89"><span class="toc-number">1.7.</span> <span class="toc-text">七、总结（核心要点回顾）</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/6-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-epoll/" title="6.IO多路复用-epoll">6.IO多路复用-epoll</a><time datetime="2026-04-29T02:28:19.000Z" title="Created 2026-04-29 10:28:19">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/5-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-poll/" title="5.IO多路复用-poll">5.IO多路复用-poll</a><time datetime="2026-04-29T02:27:53.000Z" title="Created 2026-04-29 10:27:53">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/4-IO%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8-select/" title="4.IO多路复用-select">4.IO多路复用-select</a><time datetime="2026-04-28T10:49:39.000Z" title="Created 2026-04-28 18:49:39">2026-04-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/3-%E7%AB%AF%E5%8F%A3%E5%A4%8D%E7%94%A8/" title="3.端口复用">3.端口复用</a><time datetime="2026-04-28T10:40:33.000Z" title="Created 2026-04-28 18:40:33">2026-04-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/28/2-socket%E7%BC%96%E7%A8%8B/" title="2.socket编程">2.socket编程</a><time datetime="2026-04-28T09:52:52.000Z" title="Created 2026-04-28 17:52:52">2026-04-28</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
