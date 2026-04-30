@@ -1,0 +1,481 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>1.Linux内核 | dinghaiblog</title><meta name="author" content="dinghai"><meta name="copyright" content="dinghai"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="Linux内核一、进程调度子系统（Process Scheduler）1. 核心职责进程调度子系统是内核的 “CPU 资源分配器”，负责决定哪个进程 &#x2F; 线程在哪个 CPU 核心上**何时运行 **，核心目标是：  公平性：所有进程都能获得合理的 CPU 时间片； 高效性：最大化 CPU 利用率，减少进程切换开销； 响应性：保证交互式进程（如终端、GUI 程序）的快速响应。  2. 核心">
+<meta property="og:type" content="article">
+<meta property="og:title" content="1.Linux内核">
+<meta property="og:url" content="http://example.com/2026/04/30/1-Linux%E5%86%85%E6%A0%B8/index.html">
+<meta property="og:site_name" content="dinghaiblog">
+<meta property="og:description" content="Linux内核一、进程调度子系统（Process Scheduler）1. 核心职责进程调度子系统是内核的 “CPU 资源分配器”，负责决定哪个进程 &#x2F; 线程在哪个 CPU 核心上**何时运行 **，核心目标是：  公平性：所有进程都能获得合理的 CPU 时间片； 高效性：最大化 CPU 利用率，减少进程切换开销； 响应性：保证交互式进程（如终端、GUI 程序）的快速响应。  2. 核心">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-04-30T03:33:49.000Z">
+<meta property="article:modified_time" content="2026-04-30T03:36:13.321Z">
+<meta property="article:author" content="dinghai">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "1.Linux内核",
+  "url": "http://example.com/2026/04/30/1-Linux%E5%86%85%E6%A0%B8/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-04-30T03:33:49.000Z",
+  "dateModified": "2026-04-30T03:36:13.321Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "dinghai",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/04/30/1-Linux%E5%86%85%E6%A0%B8/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '1.Linux内核',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">46</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">dinghaiblog</span></a><a class="nav-page-title" href="/"><span class="site-name">1.Linux内核</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">1.Linux内核</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-30T03:33:49.000Z" title="Created 2026-04-30 11:33:49">2026-04-30</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-30T03:36:13.321Z" title="Updated 2026-04-30 11:36:13">2026-04-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Linux/">Linux</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="container post-content" id="article-container"><h1 id="Linux内核"><a href="#Linux内核" class="headerlink" title="Linux内核"></a>Linux内核</h1><h2 id="一、进程调度子系统（Process-Scheduler）"><a href="#一、进程调度子系统（Process-Scheduler）" class="headerlink" title="一、进程调度子系统（Process Scheduler）"></a>一、进程调度子系统（Process Scheduler）</h2><h3 id="1-核心职责"><a href="#1-核心职责" class="headerlink" title="1. 核心职责"></a>1. 核心职责</h3><p>进程调度子系统是内核的 <strong>“CPU 资源分配器”</strong>，负责决定<strong>哪个进程 &#x2F; 线程</strong>在<strong>哪个 CPU 核心</strong>上**何时运行 **，核心目标是：</p>
+<ul>
+<li><strong>公平性</strong>：所有进程都能获得合理的 CPU 时间片；</li>
+<li><strong>高效性</strong>：最大化 CPU 利用率，减少进程切换开销；</li>
+<li><strong>响应性</strong>：保证交互式进程（如终端、GUI 程序）的快速响应。</li>
+</ul>
+<h3 id="2-核心概念与机制"><a href="#2-核心概念与机制" class="headerlink" title="2. 核心概念与机制"></a>2. 核心概念与机制</h3><h4 id="（1）进程状态"><a href="#（1）进程状态" class="headerlink" title="（1）进程状态"></a>（1）进程状态</h4><p>内核通过 <code>task_struct</code> 结构体的 <code>state</code> 字段描述进程状态，关键状态包括：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>TASK_RUNNING</code></td>
+<td>运行态 &#x2F; 就绪态：进程正在 CPU 上运行，或在就绪队列等待调度</td>
+</tr>
+<tr>
+<td><code>TASK_INTERRUPTIBLE</code></td>
+<td>可中断睡眠态：进程等待某事件（如 IO 完成、信号），可被信号唤醒</td>
+</tr>
+<tr>
+<td><code>TASK_UNINTERRUPTIBLE</code></td>
+<td>不可中断睡眠态：进程等待硬件事件（如磁盘 IO），<strong>不能被信号唤醒</strong>，避免硬件操作被打断</td>
+</tr>
+<tr>
+<td><code>TASK_ZOMBIE</code></td>
+<td>僵尸态：进程已终止，但父进程未调用 <code>wait</code> 回收其资源，<code>task_struct</code> 仍存在</td>
+</tr>
+<tr>
+<td><code>TASK_STOPPED</code></td>
+<td>停止态：进程被信号（如 <code>SIGSTOP</code>）暂停执行</td>
+</tr>
+</tbody></table>
+<h4 id="（2）调度策略"><a href="#（2）调度策略" class="headerlink" title="（2）调度策略"></a>（2）调度策略</h4><p>Linux 内核支持多种调度策略，以适配不同类型的进程：</p>
+<ol>
+<li><p><strong>SCHED_NORMAL（默认）</strong></p>
+<ul>
+<li>面向普通进程（如后台服务、命令行程序），采用 <strong>CFS（完全公平调度器）</strong> 实现；</li>
+<li>CFS 的核心思想：给每个进程分配<strong>比例公平的 CPU 时间</strong>，通过 “虚拟运行时间” 计算进程优先级，虚拟运行时间越短的进程，越优先被调度。</li>
+</ul>
+</li>
+<li><p><strong>SCHED_FIFO</strong></p>
+<ul>
+<li>实时先进先出调度策略，适用于硬实时进程；</li>
+<li>高优先级进程一旦就绪，立即抢占低优先级进程；同优先级进程按 “先到先服务” 顺序执行，直到主动放弃 CPU。</li>
+</ul>
+</li>
+<li><p><strong>SCHED_RR</strong></p>
+<ul>
+<li>实时时间片轮转调度策略，适用于软实时进程；</li>
+<li>同优先级进程轮流使用 CPU 时间片（默认 100ms），时间片耗尽后被放回就绪队列尾部。</li>
+</ul>
+</li>
+</ol>
+<h4 id="（3）关键数据结构"><a href="#（3）关键数据结构" class="headerlink" title="（3）关键数据结构"></a>（3）关键数据结构</h4><ul>
+<li>**<code>task_struct</code>**：进程控制块，存储进程的调度信息（优先级、调度策略、虚拟运行时间等）；</li>
+<li>**<code>runqueue</code>**：每个 CPU 核心对应一个就绪队列，存储该核心上的就绪进程，避免多核心竞争；</li>
+<li>**<code>sched_entity</code>**：调度实体，嵌入在 <code>task_struct</code> 中，描述进程的调度属性（如虚拟运行时间、权重）。</li>
+</ul>
+<h3 id="3-调度流程"><a href="#3-调度流程" class="headerlink" title="3. 调度流程"></a>3. 调度流程</h3><ol>
+<li><strong>触发时机</strong>：进程时间片耗尽、进程主动放弃 CPU（如 <code>sleep</code>）、高优先级进程就绪；</li>
+<li><strong>选择下一个进程</strong>：CFS 遍历就绪队列，选择<strong>虚拟运行时间最短</strong>的进程；</li>
+<li><strong>上下文切换</strong>：保存当前进程的 CPU 寄存器状态（到 <code>task_struct</code>），恢复目标进程的寄存器状态，完成进程切换。</li>
+</ol>
+<h2 id="二、内存管理子系统（Memory-Management-MM）"><a href="#二、内存管理子系统（Memory-Management-MM）" class="headerlink" title="二、内存管理子系统（Memory Management, MM）"></a>二、内存管理子系统（Memory Management, MM）</h2><h3 id="1-核心职责-1"><a href="#1-核心职责-1" class="headerlink" title="1. 核心职责"></a>1. 核心职责</h3><p>内存管理子系统是内核的 <strong>“内存资源管理器”</strong>，负责<strong>物理内存</strong>和**虚拟内存 ** 的分配、回收与映射，核心目标是：</p>
+<ul>
+<li>为每个进程提供<strong>独立的虚拟地址空间</strong>，避免进程间内存冲突；</li>
+<li>高效利用物理内存（如通过分页、交换、缓存机制）；</li>
+<li>支持内存共享（如动态库、进程间共享内存）。</li>
+</ul>
+<h3 id="2-核心概念与机制-1"><a href="#2-核心概念与机制-1" class="headerlink" title="2. 核心概念与机制"></a>2. 核心概念与机制</h3><h4 id="（1）虚拟地址空间"><a href="#（1）虚拟地址空间" class="headerlink" title="（1）虚拟地址空间"></a>（1）虚拟地址空间</h4><p>在 64 位 Linux 系统中，每个进程拥有 <strong>128TB 的虚拟地址空间</strong>，内核将其划分为两个部分：</p>
+<ul>
+<li><strong>用户空间（0 ~ 0x7fffffffffff）</strong>：进程私有，包含代码段、数据段、堆、栈等；</li>
+<li><strong>内核空间（0xffff880000000000 ~ 末尾）</strong>：所有进程共享，存放内核代码和数据，用户态进程需通过系统调用访问。</li>
+</ul>
+<h4 id="（2）分页机制（核心）"><a href="#（2）分页机制（核心）" class="headerlink" title="（2）分页机制（核心）"></a>（2）分页机制（核心）</h4><p>虚拟地址无法直接访问物理内存，内核通过<strong>分页机制</strong>实现虚拟地址到物理地址的映射：</p>
+<ol>
+<li><strong>页面大小</strong>：默认 4KB（可配置为 2MB&#x2F;1GB 大页，减少页表开销）；</li>
+<li><strong>多级页表</strong>：64 位系统使用 <strong>4 级页表</strong>（PGD → PUD → PMD → PTE），避免页表占用过多内存；</li>
+<li><strong>MMU 硬件加速</strong>：CPU 内置的内存管理单元（MMU）会缓存页表项（TLB），加速地址转换。</li>
+</ol>
+<h4 id="（3）物理内存分配机制"><a href="#（3）物理内存分配机制" class="headerlink" title="（3）物理内存分配机制"></a>（3）物理内存分配机制</h4><p>内核提供两种核心物理内存分配器，适配不同场景：</p>
+<ol>
+<li><p><strong>伙伴系统（Buddy System）</strong></p>
+<ul>
+<li>用于分配 <strong>大块连续物理内存</strong>（以 2 的幂次方为单位，如 4KB、8KB、16KB）；</li>
+<li>核心思想：将物理内存划分为多个块组，分配时寻找大小匹配的块，释放时合并相邻块，减少内存碎片。</li>
+</ul>
+</li>
+<li><p><strong>Slab 分配器</strong></p>
+<ul>
+<li>用于分配 <strong>小块内存</strong>（如内核数据结构 <code>task_struct</code>、<code>file</code>）；</li>
+<li>核心思想：为每种数据结构创建一个 “缓存池”，预分配若干个对象，分配 &#x2F; 释放时直接从缓存池获取 &#x2F; 归还，避免频繁调用伙伴系统，提升效率。</li>
+</ul>
+</li>
+</ol>
+<h4 id="（4）虚拟内存扩展机制"><a href="#（4）虚拟内存扩展机制" class="headerlink" title="（4）虚拟内存扩展机制"></a>（4）虚拟内存扩展机制</h4><ol>
+<li><p><strong>交换分区（Swap）</strong></p>
+<ul>
+<li>当物理内存不足时，内核将<strong>不常用的内存页面</strong>写入磁盘交换分区，释放物理内存；</li>
+<li>当进程再次访问该页面时，内核将其从交换分区读回物理内存（<strong>缺页中断</strong>）。</li>
+</ul>
+</li>
+<li><p><strong>内存映射（mmap）</strong></p>
+<ul>
+<li>将文件 &#x2F; 设备映射到进程的虚拟地址空间，进程可通过内存操作直接读写文件，无需 <code>read/write</code> 系统调用；</li>
+<li>核心优势：减少数据拷贝次数，提升大文件操作效率。</li>
+</ul>
+</li>
+</ol>
+<h3 id="3-关键数据结构"><a href="#3-关键数据结构" class="headerlink" title="3. 关键数据结构"></a>3. 关键数据结构</h3><ul>
+<li>**<code>mm_struct</code>**：进程内存描述符，存储进程的虚拟地址空间信息（如页表指针、堆 &#x2F; 栈起始地址）；</li>
+<li>**<code>page</code>**：物理页面描述符，每个物理页面对应一个 <code>page</code> 结构体，记录页面的状态（如是否被占用、所属进程）；</li>
+<li>**<code>vm_area_struct</code>**：虚拟内存区域描述符，描述进程虚拟地址空间中的一个连续区域（如代码段、堆）。</li>
+</ul>
+<h3 id="4-缺页中断处理流程"><a href="#4-缺页中断处理流程" class="headerlink" title="4. 缺页中断处理流程"></a>4. 缺页中断处理流程</h3><p>当进程访问未映射的虚拟地址时，触发缺页中断，内核处理流程：</p>
+<ol>
+<li>检查虚拟地址是否合法（是否在进程的 <code>vm_area_struct</code> 范围内）；</li>
+<li>若合法：分配物理页面，建立虚拟地址到物理地址的映射，更新页表；</li>
+<li>若非法：触发段错误（<code>SIGSEGV</code>），终止进程。</li>
+</ol>
+<h2 id="三、虚拟文件系统子系统（Virtual-File-System-VFS）"><a href="#三、虚拟文件系统子系统（Virtual-File-System-VFS）" class="headerlink" title="三、虚拟文件系统子系统（Virtual File System, VFS）"></a>三、虚拟文件系统子系统（Virtual File System, VFS）</h2><h3 id="1-核心职责-2"><a href="#1-核心职责-2" class="headerlink" title="1. 核心职责"></a>1. 核心职责</h3><p>虚拟文件系统是内核的 <strong>“文件系统抽象层”</strong>，它屏蔽了不同物理文件系统（如 ext4、xfs、tmpfs）的差异，为用户态提供**统一的文件操作接口 **（<code>open</code>&#x2F;<code>read</code>&#x2F;<code>write</code>&#x2F;<code>close</code>）。核心目标是：</p>
+<ul>
+<li>支持多种文件系统的无缝挂载与访问；</li>
+<li>统一管理所有文件类资源（普通文件、目录、设备文件、套接字）。</li>
+</ul>
+<h3 id="2-核心设计思想"><a href="#2-核心设计思想" class="headerlink" title="2. 核心设计思想"></a>2. 核心设计思想</h3><p>VFS 定义了<strong>四个核心抽象对象</strong>，所有物理文件系统都需实现这些对象的操作接口，从而接入 VFS 框架：</p>
+<table>
+<thead>
+<tr>
+<th>抽象对象</th>
+<th>作用</th>
+<th>对应物理文件系统实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>超级块（super_block）</strong></td>
+<td>描述一个已挂载的文件系统的全局信息（如文件系统类型、块大小）</td>
+<td>ext4 的 <code>ext4_sb_info</code></td>
+</tr>
+<tr>
+<td><strong>索引节点（inode）</strong></td>
+<td>描述一个文件的元数据（如大小、权限、创建时间），<strong>每个文件对应唯一的 inode</strong></td>
+<td>ext4 的 <code>ext4_inode_info</code></td>
+</tr>
+<tr>
+<td><strong>目录项（dentry）</strong></td>
+<td>描述文件的路径信息（如文件名、父目录），是路径到 inode 的映射，存在于<strong>目录项缓存</strong></td>
+<td>VFS 统一管理，与物理文件系统无关</td>
+</tr>
+<tr>
+<td><strong>文件对象（file）</strong></td>
+<td>描述进程打开的文件的上下文信息（如当前读写位置、打开模式）</td>
+<td>与物理文件系统无关</td>
+</tr>
+</tbody></table>
+<h3 id="3-核心机制"><a href="#3-核心机制" class="headerlink" title="3. 核心机制"></a>3. 核心机制</h3><h4 id="（1）目录项缓存（Dentry-Cache）"><a href="#（1）目录项缓存（Dentry-Cache）" class="headerlink" title="（1）目录项缓存（Dentry Cache）"></a>（1）目录项缓存（Dentry Cache）</h4><ul>
+<li>内核将常用的目录项（dentry）缓存到内存中，避免每次访问文件都从磁盘读取目录结构；</li>
+<li>缓存采用 LRU 算法淘汰不常用的目录项，平衡缓存命中率和内存占用。</li>
+</ul>
+<h4 id="（2）页缓存（Page-Cache）"><a href="#（2）页缓存（Page-Cache）" class="headerlink" title="（2）页缓存（Page Cache）"></a>（2）页缓存（Page Cache）</h4><ul>
+<li>内核将文件数据缓存到物理内存中（以页面为单位），进程读取文件时优先从页缓存获取，未命中时再从磁盘读取；</li>
+<li>写文件时，数据先写入页缓存，内核通过<strong>回写线程</strong>异步将脏页面写入磁盘，提升写操作效率。</li>
+</ul>
+<h4 id="（3）设备文件（-dev-目录）"><a href="#（3）设备文件（-dev-目录）" class="headerlink" title="（3）设备文件（/dev 目录）"></a>（3）设备文件（<code>/dev</code> 目录）</h4><p>VFS 将硬件设备抽象为文件，通过<strong>设备驱动</strong>实现文件操作接口：</p>
+<ul>
+<li><strong>字符设备</strong>：以字节流方式访问（如串口、键盘），对应 <code>c</code> 类型文件；</li>
+<li><strong>块设备</strong>：以块为单位访问（如磁盘、U 盘），对应 <code>b</code> 类型文件；</li>
+<li>进程通过 <code>read</code>&#x2F;<code>write</code> 操作设备文件，内核会调用对应的设备驱动函数，完成硬件交互。</li>
+</ul>
+<h3 id="4-典型操作流程（以-read-为例）"><a href="#4-典型操作流程（以-read-为例）" class="headerlink" title="4. 典型操作流程（以 read 为例）"></a>4. 典型操作流程（以 <code>read</code> 为例）</h3><ol>
+<li>用户态调用 <code>read(fd, buf, len)</code>，触发系统调用；</li>
+<li>内核通过进程的 <code>files_struct</code> 找到 <code>file</code> 对象；</li>
+<li>调用 <code>file-&gt;f_op-&gt;read</code> 函数（由具体文件系统实现）；</li>
+<li>检查页缓存：若数据在页缓存中，直接拷贝到用户缓冲区；若不在，从磁盘读取数据到页缓存，再拷贝到用户缓冲区；</li>
+<li>更新 <code>file-&gt;f_pos</code>（文件当前读写位置），返回读取的字节数。</li>
+</ol>
+<h2 id="四、网络接口子系统（Network-Interface-NET）"><a href="#四、网络接口子系统（Network-Interface-NET）" class="headerlink" title="四、网络接口子系统（Network Interface, NET）"></a>四、网络接口子系统（Network Interface, NET）</h2><h3 id="1-核心职责-3"><a href="#1-核心职责-3" class="headerlink" title="1. 核心职责"></a>1. 核心职责</h3><p>网络接口子系统是内核的 <strong>“网络通信管理器”</strong>，实现了 TCP&#x2F;IP 协议栈的核心功能，负责**网络数据包的收发、路由、协议解析 **。核心目标是：</p>
+<ul>
+<li>为应用程序提供统一的网络编程接口（如 socket 套接字）；</li>
+<li>支持多种网络协议（TCP、UDP、ICMP 等）和网络设备（以太网、无线网卡）；</li>
+<li>实现高效的数据包转发与处理。</li>
+</ul>
+<h3 id="2-核心架构与协议栈"><a href="#2-核心架构与协议栈" class="headerlink" title="2. 核心架构与协议栈"></a>2. 核心架构与协议栈</h3><p>Linux 网络子系统采用<strong>分层架构</strong>，与 TCP&#x2F;IP 五层模型对应：</p>
+<table>
+<thead>
+<tr>
+<th>协议栈分层</th>
+<th>内核组件</th>
+<th>核心功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>应用层</strong></td>
+<td>socket 接口</td>
+<td>为用户态提供网络编程接口（<code>socket</code>&#x2F;<code>bind</code>&#x2F;<code>listen</code>&#x2F;<code>accept</code>）</td>
+</tr>
+<tr>
+<td><strong>传输层</strong></td>
+<td>TCP&#x2F;UDP 协议模块</td>
+<td>实现端到端通信（TCP 可靠传输、UDP 无连接传输）</td>
+</tr>
+<tr>
+<td><strong>网络层</strong></td>
+<td>IP&#x2F;ICMP 协议模块</td>
+<td>实现数据包的路由选择与分片 &#x2F; 重组</td>
+</tr>
+<tr>
+<td><strong>数据链路层</strong></td>
+<td>网络设备驱动 &#x2F; 网桥</td>
+<td>实现 MAC 地址解析、帧的收发</td>
+</tr>
+<tr>
+<td><strong>物理层</strong></td>
+<td>硬件网卡</td>
+<td>负责二进制数据的电信号传输</td>
+</tr>
+</tbody></table>
+<h3 id="3-核心机制与数据结构"><a href="#3-核心机制与数据结构" class="headerlink" title="3. 核心机制与数据结构"></a>3. 核心机制与数据结构</h3><h4 id="（1）Socket-套接字"><a href="#（1）Socket-套接字" class="headerlink" title="（1）Socket 套接字"></a>（1）Socket 套接字</h4><p>Socket 是网络通信的<strong>端点</strong>，内核通过 <code>socket</code> 结构体描述一个套接字：</p>
+<ul>
+<li><code>sk</code>：指向 <code>sock</code> 结构体，存储套接字的核心信息（如协议类型、本地 &#x2F; 远端地址、接收 &#x2F; 发送缓冲区）；</li>
+<li><code>ops</code>：指向套接字操作函数集（<code>socket_ops</code>），不同协议（TCP&#x2F;UDP）有不同的实现；</li>
+<li><code>file</code>：关联到 VFS 的 <code>file</code> 对象，使套接字可以通过文件描述符操作。</li>
+</ul>
+<h4 id="（2）TCP-协议核心机制"><a href="#（2）TCP-协议核心机制" class="headerlink" title="（2）TCP 协议核心机制"></a>（2）TCP 协议核心机制</h4><ol>
+<li><strong>三次握手与四次挥手</strong>：实现 TCP 连接的建立与关闭；</li>
+<li><strong>滑动窗口</strong>：实现流量控制，避免发送方发送速率过快导致接收方缓冲区溢出；</li>
+<li><strong>拥塞控制</strong>：通过慢启动、拥塞避免、快速重传 &#x2F; 恢复等算法，适应网络拥塞状态；</li>
+<li><strong>收发缓冲区</strong>：内核为每个 TCP 套接字分配接收缓冲区（存储待应用程序读取的数据）和发送缓冲区（存储待网络发送的数据）。</li>
+</ol>
+<h4 id="（3）数据包收发流程（以-TCP-接收为例）"><a href="#（3）数据包收发流程（以-TCP-接收为例）" class="headerlink" title="（3）数据包收发流程（以 TCP 接收为例）"></a>（3）数据包收发流程（以 TCP 接收为例）</h4><ol>
+<li><p>网卡收到数据包后，触发<strong>硬中断</strong>，内核中断处理函数将数据包从网卡缓冲区拷贝到内核内存；</p>
+</li>
+<li><p>硬中断处理完成后，触发<strong>软中断</strong>，内核协议栈开始解析数据包：</p>
+<ul>
+<li>数据链路层：解析 MAC 地址，判断是否为本机数据包；</li>
+<li>网络层：解析 IP 地址，判断是否为本地数据包或需要转发；</li>
+<li>传输层：解析 TCP 端口，找到对应的 socket 套接字；</li>
+</ul>
+</li>
+<li><p>内核将数据包数据写入 socket 的接收缓冲区；</p>
+</li>
+<li><p>唤醒等待该 socket 数据的进程（如调用 <code>read</code> 阻塞的进程）；</p>
+</li>
+<li><p>应用程序调用 <code>read</code> 读取接收缓冲区的数据。</p>
+</li>
+</ol>
+<h2 id="五、进程间通信子系统（Inter-Process-Communication-IPC）"><a href="#五、进程间通信子系统（Inter-Process-Communication-IPC）" class="headerlink" title="五、进程间通信子系统（Inter-Process Communication, IPC）"></a>五、进程间通信子系统（Inter-Process Communication, IPC）</h2><h3 id="1-核心职责-4"><a href="#1-核心职责-4" class="headerlink" title="1. 核心职责"></a>1. 核心职责</h3><p>进程间通信子系统提供了<strong>进程间数据交换与同步的机制</strong>，由于进程拥有独立的虚拟地址空间，无法直接访问彼此的内存，因此需要内核提供专门的 IPC 机制。核心目标是：</p>
+<ul>
+<li>实现进程间的数据传输（如传递字符串、文件描述符）；</li>
+<li>实现进程间的同步与互斥（如锁、信号量）。</li>
+</ul>
+<h3 id="2-Linux-核心-IPC-机制"><a href="#2-Linux-核心-IPC-机制" class="headerlink" title="2. Linux 核心 IPC 机制"></a>2. Linux 核心 IPC 机制</h3><p>Linux 提供了多种 IPC 机制，适用于不同的应用场景，可分为三大类：</p>
+<h4 id="（1）单机-IPC-机制"><a href="#（1）单机-IPC-机制" class="headerlink" title="（1）单机 IPC 机制"></a>（1）单机 IPC 机制</h4><table>
+<thead>
+<tr>
+<th>IPC 机制</th>
+<th>核心特点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>管道（Pipe）</strong></td>
+<td>半双工通信，数据单向流动；基于文件系统，生命周期随进程</td>
+<td>父进程与子进程间的简单通信</td>
+</tr>
+<tr>
+<td><strong>命名管道（FIFO）</strong></td>
+<td>全双工通信，可用于任意进程间通信；以文件形式存在于文件系统</td>
+<td>无亲缘关系进程间的简单通信</td>
+</tr>
+<tr>
+<td><strong>信号（Signal）</strong></td>
+<td>异步通信，通过信号传递事件（如 <code>SIGINT</code>、<code>SIGTERM</code>）；只能传递有限的信号编号</td>
+<td>进程间的事件通知（如终止进程、暂停进程）</td>
+</tr>
+<tr>
+<td><strong>共享内存（Shared Memory）</strong></td>
+<td>最快的 IPC 机制；内核分配一块物理内存，映射到多个进程的虚拟地址空间</td>
+<td>大量数据的高频传输（如数据库、游戏引擎）</td>
+</tr>
+<tr>
+<td><strong>信号量（Semaphore）</strong></td>
+<td>用于进程间的同步与互斥；通过 PV 操作实现对临界资源的保护</td>
+<td>多进程共享资源时的互斥访问（如共享内存的读写同步）</td>
+</tr>
+<tr>
+<td><strong>消息队列（Message Queue）</strong></td>
+<td>基于队列的消息传递；消息有类型和优先级，可实现异步通信</td>
+<td>进程间的异步消息传递（如服务端与客户端的指令交互）</td>
+</tr>
+</tbody></table>
+<h4 id="（2）网络-IPC-机制"><a href="#（2）网络-IPC-机制" class="headerlink" title="（2）网络 IPC 机制"></a>（2）网络 IPC 机制</h4><ul>
+<li><strong>Socket 套接字</strong>：支持跨主机的进程间通信，基于 TCP&#x2F;UDP 协议；</li>
+<li>是网络编程的核心接口，既可以用于单机通信（<code>127.0.0.1</code> 回环地址），也可以用于跨网络通信。</li>
+</ul>
+<h4 id="（3）特殊-IPC-机制"><a href="#（3）特殊-IPC-机制" class="headerlink" title="（3）特殊 IPC 机制"></a>（3）特殊 IPC 机制</h4><ul>
+<li><strong>文件描述符传递</strong>：通过 <code>unix domain socket</code>（UNIX 域套接字）在进程间传递文件描述符；</li>
+<li>适用于进程间共享打开的文件、套接字等资源。</li>
+</ul>
+<h3 id="3-核心-IPC-机制详解（以共享内存为例）"><a href="#3-核心-IPC-机制详解（以共享内存为例）" class="headerlink" title="3. 核心 IPC 机制详解（以共享内存为例）"></a>3. 核心 IPC 机制详解（以共享内存为例）</h3><p>共享内存是<strong>性能最高</strong>的 IPC 机制，核心流程：</p>
+<ol>
+<li><strong>创建共享内存</strong>：进程调用 <code>shmget</code> 函数，内核分配一块物理内存，返回共享内存标识符 <code>shmid</code>；</li>
+<li><strong>映射到进程地址空间</strong>：进程调用 <code>shmat</code> 函数，将共享内存映射到自己的虚拟地址空间；</li>
+<li><strong>进程间通信</strong>：多个进程映射同一块共享内存后，可直接读写该内存区域，无需内核拷贝数据；</li>
+<li><strong>解除映射与销毁</strong>：进程调用 <code>shmdt</code> 解除映射；最后一个进程解除映射后，调用 <code>shmctl</code> 销毁共享内存，释放物理内存。</li>
+</ol>
+<p><strong>核心优势</strong>：数据无需在进程间拷贝，直接访问物理内存，通信效率极高；</p>
+<p><strong>注意事项</strong>：需要配合信号量等同步机制，避免多进程同时读写共享内存导致数据竞争。</p>
+<h2 id="六、五大子系统的协同工作"><a href="#六、五大子系统的协同工作" class="headerlink" title="六、五大子系统的协同工作"></a>六、五大子系统的协同工作</h2><p>Linux 内核的五大子系统并非孤立存在，而是<strong>紧密协作</strong>，共同支撑应用程序的运行。以一个 “TCP 网络通信” 场景为例，子系统的交互流程：</p>
+<ol>
+<li><strong>进程调度</strong>：用户态进程调用 <code>socket</code>&#x2F;<code>read</code> 系统调用，触发内核态切换；内核调度进程进入睡眠态，直到网络数据到达。</li>
+<li><strong>网络接口</strong>：网卡收到数据包后，内核协议栈解析数据包，将数据写入 socket 接收缓冲区；唤醒睡眠的进程。</li>
+<li><strong>进程调度</strong>：进程被唤醒，重新进入就绪队列，等待 CPU 调度执行。</li>
+<li><strong>内存管理</strong>：进程调用 <code>read</code> 读取接收缓冲区数据时，内核将内核态缓冲区的数据拷贝到用户态缓冲区（涉及虚拟地址到物理地址的映射）。</li>
+<li><strong>虚拟文件系统</strong>：socket 作为特殊的文件对象，通过 VFS 的 <code>file</code> 结构体管理，进程通过文件描述符操作 socket。</li>
+<li><strong>进程间通信</strong>：若进程需要将接收到的数据传递给另一个进程，可通过共享内存、消息队列等 IPC 机制实现。</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://example.com">dinghai</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://example.com/2026/04/30/1-Linux%E5%86%85%E6%A0%B8/">http://example.com/2026/04/30/1-Linux%E5%86%85%E6%A0%B8/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/" title="muduo结构图"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">muduo结构图</div></div><div class="info-2"><div class="info-item-1">     核心事件流转完整流程图（从监听连接到数据收发）123456789101112131415161718192021222324252627282930313233343536启动TcpServer    │    ▼创建Acceptor → 绑定baseLoop(主EventLoop) → 创建listenfd → socket/bind/listen    │    ▼Acceptor创建AcceptorChannel(绑定listenfd) → 注册到baseLoop的Poller    │    ▼baseLoop进入EventLoop::loop() → Poller调用epoll_wait监听listenfd的可读事件    │    ▼客户端发起连接 → listenfd触发可读事件    │    ▼Poller将AcceptorChannel加入activeChannels_ → EventLoop处理Channel回调    │    ▼Acceptor执行accept() → 获取新连接connfd → 创建TcpConnection实例    │  ...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">dinghai</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">46</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/hgdcoco123"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Linux%E5%86%85%E6%A0%B8"><span class="toc-number">1.</span> <span class="toc-text">Linux内核</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%BF%9B%E7%A8%8B%E8%B0%83%E5%BA%A6%E5%AD%90%E7%B3%BB%E7%BB%9F%EF%BC%88Process-Scheduler%EF%BC%89"><span class="toc-number">1.1.</span> <span class="toc-text">一、进程调度子系统（Process Scheduler）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E8%81%8C%E8%B4%A3"><span class="toc-number">1.1.1.</span> <span class="toc-text">1. 核心职责</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%8E%E6%9C%BA%E5%88%B6"><span class="toc-number">1.1.2.</span> <span class="toc-text">2. 核心概念与机制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E8%BF%9B%E7%A8%8B%E7%8A%B6%E6%80%81"><span class="toc-number">1.1.2.1.</span> <span class="toc-text">（1）进程状态</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E8%B0%83%E5%BA%A6%E7%AD%96%E7%95%A5"><span class="toc-number">1.1.2.2.</span> <span class="toc-text">（2）调度策略</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-number">1.1.2.3.</span> <span class="toc-text">（3）关键数据结构</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E8%B0%83%E5%BA%A6%E6%B5%81%E7%A8%8B"><span class="toc-number">1.1.3.</span> <span class="toc-text">3. 调度流程</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%AD%90%E7%B3%BB%E7%BB%9F%EF%BC%88Memory-Management-MM%EF%BC%89"><span class="toc-number">1.2.</span> <span class="toc-text">二、内存管理子系统（Memory Management, MM）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E8%81%8C%E8%B4%A3-1"><span class="toc-number">1.2.1.</span> <span class="toc-text">1. 核心职责</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5%E4%B8%8E%E6%9C%BA%E5%88%B6-1"><span class="toc-number">1.2.2.</span> <span class="toc-text">2. 核心概念与机制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E7%A9%BA%E9%97%B4"><span class="toc-number">1.2.2.1.</span> <span class="toc-text">（1）虚拟地址空间</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E5%88%86%E9%A1%B5%E6%9C%BA%E5%88%B6%EF%BC%88%E6%A0%B8%E5%BF%83%EF%BC%89"><span class="toc-number">1.2.2.2.</span> <span class="toc-text">（2）分页机制（核心）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6"><span class="toc-number">1.2.2.3.</span> <span class="toc-text">（3）物理内存分配机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%884%EF%BC%89%E8%99%9A%E6%8B%9F%E5%86%85%E5%AD%98%E6%89%A9%E5%B1%95%E6%9C%BA%E5%88%B6"><span class="toc-number">1.2.2.4.</span> <span class="toc-text">（4）虚拟内存扩展机制</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-number">1.2.3.</span> <span class="toc-text">3. 关键数据结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E7%BC%BA%E9%A1%B5%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B"><span class="toc-number">1.2.4.</span> <span class="toc-text">4. 缺页中断处理流程</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E8%99%9A%E6%8B%9F%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%AD%90%E7%B3%BB%E7%BB%9F%EF%BC%88Virtual-File-System-VFS%EF%BC%89"><span class="toc-number">1.3.</span> <span class="toc-text">三、虚拟文件系统子系统（Virtual File System, VFS）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E8%81%8C%E8%B4%A3-2"><span class="toc-number">1.3.1.</span> <span class="toc-text">1. 核心职责</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%A0%B8%E5%BF%83%E8%AE%BE%E8%AE%A1%E6%80%9D%E6%83%B3"><span class="toc-number">1.3.2.</span> <span class="toc-text">2. 核心设计思想</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%9C%BA%E5%88%B6"><span class="toc-number">1.3.3.</span> <span class="toc-text">3. 核心机制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E7%9B%AE%E5%BD%95%E9%A1%B9%E7%BC%93%E5%AD%98%EF%BC%88Dentry-Cache%EF%BC%89"><span class="toc-number">1.3.3.1.</span> <span class="toc-text">（1）目录项缓存（Dentry Cache）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E9%A1%B5%E7%BC%93%E5%AD%98%EF%BC%88Page-Cache%EF%BC%89"><span class="toc-number">1.3.3.2.</span> <span class="toc-text">（2）页缓存（Page Cache）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E8%AE%BE%E5%A4%87%E6%96%87%E4%BB%B6%EF%BC%88-dev-%E7%9B%AE%E5%BD%95%EF%BC%89"><span class="toc-number">1.3.3.3.</span> <span class="toc-text">（3）设备文件（&#x2F;dev 目录）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%85%B8%E5%9E%8B%E6%93%8D%E4%BD%9C%E6%B5%81%E7%A8%8B%EF%BC%88%E4%BB%A5-read-%E4%B8%BA%E4%BE%8B%EF%BC%89"><span class="toc-number">1.3.4.</span> <span class="toc-text">4. 典型操作流程（以 read 为例）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E7%BD%91%E7%BB%9C%E6%8E%A5%E5%8F%A3%E5%AD%90%E7%B3%BB%E7%BB%9F%EF%BC%88Network-Interface-NET%EF%BC%89"><span class="toc-number">1.4.</span> <span class="toc-text">四、网络接口子系统（Network Interface, NET）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E8%81%8C%E8%B4%A3-3"><span class="toc-number">1.4.1.</span> <span class="toc-text">1. 核心职责</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%A0%B8%E5%BF%83%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%8D%8F%E8%AE%AE%E6%A0%88"><span class="toc-number">1.4.2.</span> <span class="toc-text">2. 核心架构与协议栈</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%9C%BA%E5%88%B6%E4%B8%8E%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-number">1.4.3.</span> <span class="toc-text">3. 核心机制与数据结构</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%881%EF%BC%89Socket-%E5%A5%97%E6%8E%A5%E5%AD%97"><span class="toc-number">1.4.3.1.</span> <span class="toc-text">（1）Socket 套接字</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%882%EF%BC%89TCP-%E5%8D%8F%E8%AE%AE%E6%A0%B8%E5%BF%83%E6%9C%BA%E5%88%B6"><span class="toc-number">1.4.3.2.</span> <span class="toc-text">（2）TCP 协议核心机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E6%95%B0%E6%8D%AE%E5%8C%85%E6%94%B6%E5%8F%91%E6%B5%81%E7%A8%8B%EF%BC%88%E4%BB%A5-TCP-%E6%8E%A5%E6%94%B6%E4%B8%BA%E4%BE%8B%EF%BC%89"><span class="toc-number">1.4.3.3.</span> <span class="toc-text">（3）数据包收发流程（以 TCP 接收为例）</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E8%BF%9B%E7%A8%8B%E9%97%B4%E9%80%9A%E4%BF%A1%E5%AD%90%E7%B3%BB%E7%BB%9F%EF%BC%88Inter-Process-Communication-IPC%EF%BC%89"><span class="toc-number">1.5.</span> <span class="toc-text">五、进程间通信子系统（Inter-Process Communication, IPC）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%A0%B8%E5%BF%83%E8%81%8C%E8%B4%A3-4"><span class="toc-number">1.5.1.</span> <span class="toc-text">1. 核心职责</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Linux-%E6%A0%B8%E5%BF%83-IPC-%E6%9C%BA%E5%88%B6"><span class="toc-number">1.5.2.</span> <span class="toc-text">2. Linux 核心 IPC 机制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E5%8D%95%E6%9C%BA-IPC-%E6%9C%BA%E5%88%B6"><span class="toc-number">1.5.2.1.</span> <span class="toc-text">（1）单机 IPC 机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E7%BD%91%E7%BB%9C-IPC-%E6%9C%BA%E5%88%B6"><span class="toc-number">1.5.2.2.</span> <span class="toc-text">（2）网络 IPC 机制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E7%89%B9%E6%AE%8A-IPC-%E6%9C%BA%E5%88%B6"><span class="toc-number">1.5.2.3.</span> <span class="toc-text">（3）特殊 IPC 机制</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83-IPC-%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3%EF%BC%88%E4%BB%A5%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98%E4%B8%BA%E4%BE%8B%EF%BC%89"><span class="toc-number">1.5.3.</span> <span class="toc-text">3. 核心 IPC 机制详解（以共享内存为例）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E4%BA%94%E5%A4%A7%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%8D%8F%E5%90%8C%E5%B7%A5%E4%BD%9C"><span class="toc-number">1.6.</span> <span class="toc-text">六、五大子系统的协同工作</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/30/1-Linux%E5%86%85%E6%A0%B8/" title="1.Linux内核">1.Linux内核</a><time datetime="2026-04-30T03:33:49.000Z" title="Created 2026-04-30 11:33:49">2026-04-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/muduo%E7%BB%93%E6%9E%84%E5%9B%BE/" title="muduo结构图">muduo结构图</a><time datetime="2026-04-29T13:04:52.000Z" title="Created 2026-04-29 21:04:52">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/%E5%8E%9F%E4%BB%A3%E7%A0%81%E8%A7%A3%E6%9E%90/" title="原代码解析">原代码解析</a><time datetime="2026-04-29T13:04:35.000Z" title="Created 2026-04-29 21:04:35">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day21-%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC%E5%92%8C%E6%B5%8B%E8%AF%95%E4%BB%A3%E7%A0%81/" title="day21-编译安装脚本和测试代码">day21-编译安装脚本和测试代码</a><time datetime="2026-04-29T13:03:54.000Z" title="Created 2026-04-29 21:03:54">2026-04-29</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/29/day20-TcpServer-TcpConnection/" title="day20-TcpServer+TcpConnection">day20-TcpServer+TcpConnection</a><time datetime="2026-04-29T13:03:34.000Z" title="Created 2026-04-29 21:03:34">2026-04-29</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By dinghai</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
